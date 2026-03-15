@@ -51,7 +51,15 @@ select { cursor: pointer; }
 /* File upload */
 .drop-zone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 20px; text-align: center; color: var(--fg2); cursor: pointer; transition: border-color 0.2s; }
 .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); color: var(--accent); }
-.drop-zone .file-info { color: var(--green); font-weight: 500; }
+.file-list { margin-top: 8px; }
+.file-item { display: flex; align-items: center; justify-content: space-between; padding: 4px 8px; background: var(--bg3); border-radius: var(--radius); margin-bottom: 4px; font-size: 0.8rem; }
+.file-item .file-name { color: var(--green); font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-item .file-size { color: var(--fg2); font-size: 0.7rem; margin: 0 8px; }
+.file-item .file-remove { background: none; border: none; color: var(--red); cursor: pointer; font-size: 1rem; padding: 0 4px; opacity: 0.7; }
+.file-item .file-remove:hover { opacity: 1; }
+.file-mode { display: flex; gap: 12px; margin-top: 8px; font-size: 0.75rem; color: var(--fg2); }
+.file-mode label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.file-mode input[type="radio"] { accent-color: var(--accent); }
 
 /* Models */
 .models-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 6px; }
@@ -126,7 +134,7 @@ select { cursor: pointer; }
 
   <!-- Header -->
   <div class="header">
-    <h1>AI Tester <span style="font-size:0.5em;color:var(--fg2)">v1.0.0</span></h1>
+    <h1>AI Tester <span style="font-size:0.5em;color:var(--fg2)">v1.1.0</span></h1>
     <span style="color:var(--fg2);font-size:0.75rem">v1.0 — Browser-only, no server needed</span>
   </div>
 
@@ -176,10 +184,15 @@ select { cursor: pointer; }
       <textarea id="userPrompt" rows="5" placeholder="User prompt..."></textarea>
     </div>
     <div class="field">
-      <label>Ficheiro (opcional)</label>
+      <label>Ficheiros (opcional)</label>
       <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
-        <span id="dropText">Arrasta ficheiro aqui ou clica para seleccionar</span>
-        <input type="file" id="fileInput" style="display:none" onchange="handleFileSelect(event)">
+        <span id="dropText">Arrasta ficheiros aqui ou clica para seleccionar</span>
+        <input type="file" id="fileInput" style="display:none" multiple onchange="handleFileSelect(event)">
+      </div>
+      <div id="fileList" class="file-list"></div>
+      <div id="fileMode" class="file-mode" style="display:none">
+        <label><input type="radio" name="fileMode" value="sequential" checked> 1 ficheiro por pedido (sequencial)</label>
+        <label><input type="radio" name="fileMode" value="batch"> Todos num pedido</label>
       </div>
     </div>
   </div>
@@ -206,7 +219,10 @@ select { cursor: pointer; }
     <div class="panel">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <h2>Histórico</h2>
-        <button class="btn btn-secondary btn-sm" onclick="exportHistory()">Export .md</button>
+        <div style="display:flex;gap:8px;align-items:center">
+          <label style="font-size:0.7rem;color:var(--fg2);display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="groupRuns" onchange="renderHistory()" style="accent-color:var(--accent)"> Agrupar</label>
+          <button class="btn btn-secondary btn-sm" onclick="exportHistory()">Export .md</button>
+        </div>
       </div>
       <div id="historyList" class="history"></div>
     </div>
@@ -242,8 +258,8 @@ select { cursor: pointer; }
 // State
 // =====================================================================
 
-let uploadedFile = null; // { name, size, mimeType, base64 }
-let history = []; // [{ id, timestamp, prompt, systemPrompt, file, models, results }]
+let uploadedFiles = []; // [{ name, size, mimeType, base64 }]
+let history = []; // [{ id, timestamp, prompt, systemPrompt, file, files, groupId, models, results }]
 let activeHistoryId = null;
 let selectedModels = new Set();
 let priceDialogTarget = null;
@@ -469,22 +485,55 @@ function handleDragLeave(e) { e.currentTarget.classList.remove('dragover'); }
 function handleDrop(e) {
   e.preventDefault();
   e.currentTarget.classList.remove('dragover');
-  if (e.dataTransfer.files.length) processFile(e.dataTransfer.files[0]);
+  for (const f of e.dataTransfer.files) processFile(f);
 }
 
 function handleFileSelect(e) {
-  if (e.target.files.length) processFile(e.target.files[0]);
+  for (const f of e.target.files) processFile(f);
+  e.target.value = '';
 }
 
 function processFile(file) {
   const reader = new FileReader();
   reader.onload = () => {
     const base64 = reader.result.split(',')[1];
-    uploadedFile = { name: file.name, size: file.size, mimeType: file.type || 'application/octet-stream', base64 };
-    document.getElementById('dropText').innerHTML = `<span class="file-info">${file.name} (${(file.size/1024).toFixed(0)} KB)</span>`;
+    uploadedFiles.push({ name: file.name, size: file.size, mimeType: file.type || 'application/octet-stream', base64 });
+    renderFileList();
     updateRunButton();
   };
   reader.readAsDataURL(file);
+}
+
+function removeFile(index) {
+  uploadedFiles.splice(index, 1);
+  renderFileList();
+  updateRunButton();
+}
+
+function renderFileList() {
+  const list = document.getElementById('fileList');
+  const modeDiv = document.getElementById('fileMode');
+  if (!uploadedFiles.length) {
+    list.innerHTML = '';
+    modeDiv.style.display = 'none';
+    document.getElementById('dropText').textContent = 'Arrasta ficheiros aqui ou clica para seleccionar';
+    return;
+  }
+  document.getElementById('dropText').textContent = `+ Adicionar mais ficheiros (${uploadedFiles.length} seleccionado${uploadedFiles.length > 1 ? 's' : ''})`;
+  modeDiv.style.display = uploadedFiles.length > 1 ? 'flex' : 'none';
+  list.innerHTML = uploadedFiles.map((f, i) =>
+    `<div class="file-item">
+      <span class="file-name">${escapeHtml(f.name)}</span>
+      <span class="file-size">${(f.size/1024).toFixed(0)} KB</span>
+      <button class="file-remove" onclick="removeFile(${i})" title="Remover">✕</button>
+    </div>`
+  ).join('');
+
+  function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+}
+
+function getFileMode() {
+  return document.querySelector('input[name="fileMode"]:checked')?.value || 'sequential';
 }
 
 // =====================================================================
@@ -550,11 +599,11 @@ function closePriceDialog() {
 // API Calls
 // =====================================================================
 
-async function callAnthropic(modelId, systemPrompt, userPrompt, file) {
+async function callAnthropic(modelId, systemPrompt, userPrompt, files) {
   const key = document.getElementById('keyAnthropic').value.trim();
   const content = [];
 
-  if (file) {
+  for (const file of files) {
     const isImage = file.mimeType.startsWith('image/');
     content.push(isImage
       ? { type: 'image', source: { type: 'base64', media_type: file.mimeType, data: file.base64 } }
@@ -588,14 +637,14 @@ async function callAnthropic(modelId, systemPrompt, userPrompt, file) {
   return { text, tokensIn: data.usage?.input_tokens || 0, tokensOut: data.usage?.output_tokens || 0 };
 }
 
-async function callOpenAI(modelId, systemPrompt, userPrompt, file) {
+async function callOpenAI(modelId, systemPrompt, userPrompt, files) {
   const key = document.getElementById('keyOpenAI').value.trim();
   const messages = [];
 
   if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
 
   const userContent = [];
-  if (file) {
+  for (const file of files) {
     userContent.push({ type: 'file', file: { filename: file.name, file_data: `data:${file.mimeType};base64,${file.base64}` } });
   }
   userContent.push({ type: 'text', text: userPrompt });
@@ -619,11 +668,11 @@ async function callOpenAI(modelId, systemPrompt, userPrompt, file) {
   return { text, tokensIn: data.usage?.prompt_tokens || 0, tokensOut: data.usage?.completion_tokens || 0 };
 }
 
-async function callGemini(modelId, systemPrompt, userPrompt, file) {
+async function callGemini(modelId, systemPrompt, userPrompt, files) {
   const key = document.getElementById('keyGemini').value.trim();
   const parts = [];
 
-  if (file) {
+  for (const file of files) {
     parts.push({ inlineData: { mimeType: file.mimeType, data: file.base64 } });
   }
 
@@ -645,11 +694,11 @@ async function callGemini(modelId, systemPrompt, userPrompt, file) {
   return { text, tokensIn: usage.promptTokenCount || 0, tokensOut: usage.candidatesTokenCount || 0 };
 }
 
-async function callModel(modelId, systemPrompt, userPrompt, file) {
+async function callModel(modelId, systemPrompt, userPrompt, files) {
   const provider = MODELS[modelId].provider;
-  if (provider === 'anthropic') return callAnthropic(modelId, systemPrompt, userPrompt, file);
-  if (provider === 'openai') return callOpenAI(modelId, systemPrompt, userPrompt, file);
-  if (provider === 'gemini') return callGemini(modelId, systemPrompt, userPrompt, file);
+  if (provider === 'anthropic') return callAnthropic(modelId, systemPrompt, userPrompt, files);
+  if (provider === 'openai') return callOpenAI(modelId, systemPrompt, userPrompt, files);
+  if (provider === 'gemini') return callGemini(modelId, systemPrompt, userPrompt, files);
   throw new Error(`Unknown provider: ${provider}`);
 }
 
@@ -657,20 +706,19 @@ async function callModel(modelId, systemPrompt, userPrompt, file) {
 // Run tests
 // =====================================================================
 
-async function runTests() {
-  const systemPrompt = document.getElementById('systemPrompt').value.trim();
-  const userPrompt = document.getElementById('userPrompt').value.trim();
-  const models = [...selectedModels];
+let nextGroupId = 1;
 
-  if (!models.length || !userPrompt) return;
-
+async function runSingleBatch(systemPrompt, userPrompt, files, models, groupId, fileLabel) {
   const runId = history.length + 1;
+  const fileMeta = files.length ? files.map(f => ({ name: f.name, size: f.size })) : [];
   const run = {
     id: runId,
     timestamp: new Date().toISOString(),
     systemPrompt,
     userPrompt,
-    file: uploadedFile ? { name: uploadedFile.name, size: uploadedFile.size } : null,
+    file: fileMeta.length === 1 ? fileMeta[0] : null,
+    files: fileMeta,
+    groupId,
     models: models.map(id => ({ id, ...MODELS[id] })),
     results: {},
   };
@@ -679,7 +727,12 @@ async function runTests() {
   document.getElementById('resultsPanel').style.display = 'block';
   const grid = document.getElementById('resultsGrid');
   grid.className = `results-grid cols-${models.length}`;
-  grid.innerHTML = models.map(id => `
+  if (fileLabel) {
+    grid.innerHTML = `<div style="grid-column:1/-1;font-size:0.8rem;color:var(--accent);padding:4px 0;border-bottom:1px solid var(--border);margin-bottom:4px">${escapeHtml(fileLabel)}</div>`;
+  } else {
+    grid.innerHTML = '';
+  }
+  grid.innerHTML += models.map(id => `
     <div class="result-card" id="result_${id}">
       <div class="result-header">
         <span class="model-name">${MODELS[id].name}</span>
@@ -689,13 +742,10 @@ async function runTests() {
     </div>
   `).join('');
 
-  document.getElementById('runBtn').disabled = true;
-
-  // Run all in parallel
   const promises = models.map(async (modelId) => {
     const start = performance.now();
     try {
-      const result = await callModel(modelId, systemPrompt, userPrompt, uploadedFile);
+      const result = await callModel(modelId, systemPrompt, userPrompt, files);
       const elapsed = ((performance.now() - start) / 1000).toFixed(1);
       const m = MODELS[modelId];
       const costEUR = ((result.tokensIn * m.priceIn + result.tokensOut * m.priceOut) / 1_000_000 * 0.92);
@@ -713,10 +763,35 @@ async function runTests() {
   });
 
   await Promise.all(promises);
-
   history.push(run);
-  activeHistoryId = runId;
-  renderHistory();
+  return runId;
+}
+
+async function runTests() {
+  const systemPrompt = document.getElementById('systemPrompt').value.trim();
+  const userPrompt = document.getElementById('userPrompt').value.trim();
+  const models = [...selectedModels];
+
+  if (!models.length || !userPrompt) return;
+
+  document.getElementById('runBtn').disabled = true;
+  const mode = getFileMode();
+  const groupId = nextGroupId++;
+
+  if (uploadedFiles.length > 1 && mode === 'sequential') {
+    // Sequential: one run per file
+    for (let i = 0; i < uploadedFiles.length; i++) {
+      const lastId = await runSingleBatch(systemPrompt, userPrompt, [uploadedFiles[i]], models, groupId, `Ficheiro ${i + 1}/${uploadedFiles.length}: ${uploadedFiles[i].name}`);
+      activeHistoryId = lastId;
+      renderHistory();
+    }
+  } else {
+    // Single run: no files, one file, or batch mode with all files
+    const lastId = await runSingleBatch(systemPrompt, userPrompt, uploadedFiles, models, groupId, null);
+    activeHistoryId = lastId;
+    renderHistory();
+  }
+
   document.getElementById('runBtn').disabled = false;
 }
 
@@ -779,12 +854,35 @@ function renderHistory() {
   if (!history.length) { panel.style.display = 'none'; return; }
   panel.style.display = 'block';
 
+  const grouped = document.getElementById('groupRuns')?.checked;
   const list = document.getElementById('historyList');
-  list.innerHTML = history.map(r => {
-    const active = r.id === activeHistoryId ? 'active' : '';
-    const file = r.file ? ` | ${r.file.name}` : '';
-    return `<div class="history-item ${active}" onclick="showHistoryRun(${r.id})">Run ${r.id}${file}</div>`;
-  }).join('');
+
+  if (grouped) {
+    // Group by groupId
+    const groups = {};
+    for (const r of history) {
+      const gid = r.groupId || r.id;
+      if (!groups[gid]) groups[gid] = [];
+      groups[gid].push(r);
+    }
+    list.innerHTML = Object.entries(groups).map(([gid, runs]) => {
+      if (runs.length === 1) {
+        const r = runs[0];
+        const active = r.id === activeHistoryId ? 'active' : '';
+        const files = r.files?.length ? ` | ${r.files.map(f => f.name).join(', ')}` : '';
+        return `<div class="history-item ${active}" onclick="showHistoryRun(${r.id})">Run ${r.id}${files}</div>`;
+      }
+      const isActive = runs.some(r => r.id === activeHistoryId);
+      const fileNames = runs.map(r => r.files?.[0]?.name || '').filter(Boolean).join(', ');
+      return `<div class="history-item ${isActive ? 'active' : ''}" onclick="showGroupedRuns(${gid})" title="${escapeHtml(fileNames)}">Grupo ${gid} (${runs.length} runs)</div>`;
+    }).join('');
+  } else {
+    list.innerHTML = history.map(r => {
+      const active = r.id === activeHistoryId ? 'active' : '';
+      const files = r.files?.length ? ` | ${r.files.map(f => f.name).join(', ')}` : '';
+      return `<div class="history-item ${active}" onclick="showHistoryRun(${r.id})">Run ${r.id}${files}</div>`;
+    }).join('');
+  }
 }
 
 function showHistoryRun(id) {
@@ -796,6 +894,11 @@ function showHistoryRun(id) {
   const grid = document.getElementById('resultsGrid');
   grid.className = `results-grid cols-${models.length}`;
   grid.innerHTML = '';
+
+  // Show file label if it has files
+  if (run.files?.length) {
+    grid.innerHTML += `<div style="grid-column:1/-1;font-size:0.8rem;color:var(--accent);padding:4px 0">${escapeHtml(run.files.map(f => f.name).join(', '))}</div>`;
+  }
 
   for (const modelId of models) {
     const result = run.results[modelId];
@@ -818,6 +921,42 @@ function showHistoryRun(id) {
   renderHistory();
 }
 
+function showGroupedRuns(groupId) {
+  const runs = history.filter(r => r.groupId === groupId);
+  if (!runs.length) return;
+  activeHistoryId = runs[0].id;
+
+  const models = runs[0].models.map(m => m.id);
+  const grid = document.getElementById('resultsGrid');
+  grid.className = `results-grid cols-${models.length}`;
+  grid.innerHTML = '';
+
+  for (const run of runs) {
+    const fileName = run.files?.[0]?.name || `Run ${run.id}`;
+    grid.innerHTML += `<div style="grid-column:1/-1;font-size:0.8rem;color:var(--accent);padding:8px 0 4px;border-top:1px solid var(--border);margin-top:8px">${escapeHtml(fileName)}</div>`;
+
+    for (const modelId of models) {
+      const result = run.results[modelId];
+      if (!result) continue;
+      const m = run.models.find(x => x.id === modelId);
+      const meta = result.error
+        ? `<span style="color:var(--red)">Erro</span>`
+        : `<span>${result.tokensIn}+${result.tokensOut} tok</span><span>${result.elapsed}s</span><span class="cost">EUR${result.costEUR.toFixed(4)}</span>`;
+      const body = result.error
+        ? `<pre class="error">${escapeHtml(result.error)}</pre>`
+        : `<pre>${formatResponse(result.text)}</pre>`;
+
+      grid.innerHTML += `<div class="result-card">
+        <div class="result-header"><span class="model-name">${m.name}</span><div class="result-meta">${meta}</div></div>
+        <div class="result-body">${body}</div>
+      </div>`;
+    }
+  }
+
+  document.getElementById('resultsPanel').style.display = 'block';
+  renderHistory();
+}
+
 // =====================================================================
 // Export
 // =====================================================================
@@ -828,7 +967,7 @@ function exportHistory() {
   for (const run of history) {
     lines.push('---', '', `## Run ${run.id}`, '');
     lines.push(`**Timestamp:** ${run.timestamp}`);
-    if (run.file) lines.push(`**Ficheiro:** ${run.file.name} (${(run.file.size/1024).toFixed(0)} KB)`);
+    if (run.files?.length) lines.push(`**Ficheiros:** ${run.files.map(f => `${f.name} (${(f.size/1024).toFixed(0)} KB)`).join(', ')}`);
     if (run.systemPrompt) lines.push('', '**System Prompt:**', '```', run.systemPrompt, '```');
     lines.push('', '**User Prompt:**', '```', run.userPrompt, '```', '');
 

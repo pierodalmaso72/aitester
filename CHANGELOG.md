@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), using [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-03-15
+
+### Added
+- Multi-file upload with drag & drop and individual file removal
+- Send mode toggle: sequential (1 file per request) or batch (all files in one request)
+- Grouped history view for sequential runs (toggle "Agrupar")
+- Dynamic model listing for Anthropic via /v1/models endpoint
+
+### Changed
+- API calls now accept multiple files (array) for batch mode
+- File list UI replaces single file display
+- Export shows multiple file names per run
+
 ## [1.0.0] - 2026-03-15
 
 ### Added
