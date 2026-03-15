@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), using [Semantic Versioning](https://semver.org/).
 
+## [1.2.1] - 2026-03-15
+
+### Changed
+- All model prices now come exclusively from OpenRouter API (no more hardcoded defaults)
+- USD to EUR exchange rate fetched dynamically from open.er-api.com
+
+### Fixed
+- Gemini Flash-Lite price fetch now detects per-token vs per-million format and converts correctly
+- Price inputs always display with 2 decimal places (e.g. 15.00)
+
 ## [1.2.0] - 2026-03-15
 
 ### Added
