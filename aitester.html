@@ -432,6 +432,7 @@ async function fetchGeminiModels(key) {
 // =====================================================================
 
 function renderModels() {
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const container = document.getElementById('modelsContainer');
   const byProvider = {};
   for (const [id, m] of Object.entries(MODELS)) {
@@ -443,8 +444,12 @@ function renderModels() {
   for (const provider of ['anthropic', 'openai', 'gemini']) {
     const models = byProvider[provider];
     if (!models?.length) continue;
-    html += `<div class="model-group"><h3>${PROVIDER_LABELS[provider]}</h3>`;
-    for (const m of models) {
+    const filterVal = document.getElementById('filter_' + provider)?.value || '';
+    const filtered = filterVal
+      ? models.filter(m => (m.id + ' ' + m.name).toLowerCase().includes(filterVal.toLowerCase()))
+      : models;
+    html += `<div class="model-group"><h3 style="display:flex;align-items:center;gap:8px">${PROVIDER_LABELS[provider]} <input type="text" id="filter_${provider}" placeholder="Filtrar..." value="${esc(filterVal)}" oninput="renderModels()" style="flex:1;max-width:180px;padding:2px 6px;font-size:0.7rem;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--fg)"></h3>`;
+    for (const m of filtered) {
       const checked = selectedModels.has(m.id) ? 'checked' : '';
       html += `<div class="model-item">
         <input type="checkbox" ${checked} onchange="toggleModel('${m.id}', this.checked)" id="chk_${m.id}">
