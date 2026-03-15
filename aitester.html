@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Model Playground</title>
+<title>AI Tester</title>
 <style>
 :root {
   --bg: #1a1b2e; --bg2: #232440; --bg3: #2a2b4a;
@@ -126,7 +126,7 @@ select { cursor: pointer; }
 
   <!-- Header -->
   <div class="header">
-    <h1>AI Model Playground</h1>
+    <h1>AI Tester</h1>
     <span style="color:var(--fg2);font-size:0.75rem">v1.0 — Browser-only, no server needed</span>
   </div>
 
@@ -787,7 +787,7 @@ function showHistoryRun(id) {
 // =====================================================================
 
 function exportHistory() {
-  const lines = ['# AI Model Playground — Export', '', `**Data:** ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`, `**Runs:** ${history.length}`, ''];
+  const lines = ['# AI Tester — Export', '', `**Data:** ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`, `**Runs:** ${history.length}`, ''];
 
   for (const run of history) {
     lines.push('---', '', `## Run ${run.id}`, '');
@@ -819,7 +819,7 @@ function exportHistory() {
   const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `playground-export-${new Date().toISOString().slice(0,10)}.md`;
+  a.download = `aitester-export-${new Date().toISOString().slice(0,10)}.md`;
   a.click();
 }
 

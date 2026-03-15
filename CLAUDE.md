@@ -1,4 +1,4 @@
-# AI Model Playground
+# AI Tester
 
 ## O que é
 
