@@ -268,6 +268,67 @@ let history = []; // [{ id, timestamp, prompt, systemPrompt, file, files, groupI
 let activeHistoryId = null;
 let selectedModels = new Set();
 let priceDialogTarget = null;
+let openRouterPrices = {}; // { 'model-slug': { priceIn, priceOut } }
+
+// =====================================================================
+// OpenRouter pricing (no auth required)
+// =====================================================================
+
+async function fetchOpenRouterPrices() {
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/models');
+    if (!res.ok) return;
+    const data = await res.json();
+    for (const m of (data.data || [])) {
+      const prompt = parseFloat(m.pricing?.prompt || '0');
+      const completion = parseFloat(m.pricing?.completion || '0');
+      if (!prompt && !completion) continue;
+      // Store by full id and by slug (part after provider/)
+      openRouterPrices[m.id] = { priceIn: prompt * 1_000_000, priceOut: completion * 1_000_000 };
+      const slug = m.id.split('/')[1];
+      if (slug) openRouterPrices[slug] = openRouterPrices[m.id];
+    }
+    applyOpenRouterPrices();
+    console.log(`OpenRouter: ${Object.keys(openRouterPrices).length / 2} models with pricing loaded`);
+  } catch (e) {
+    console.warn('OpenRouter pricing fetch failed:', e);
+  }
+}
+
+function matchOpenRouterPrice(modelId) {
+  // Try direct slug match
+  if (openRouterPrices[modelId]) return openRouterPrices[modelId];
+
+  // Strip date suffix (e.g. claude-sonnet-4-20250514 → claude-sonnet-4)
+  const noDate = modelId.replace(/-\d{8}$/, '');
+  if (openRouterPrices[noDate]) return openRouterPrices[noDate];
+
+  // Try with provider prefix
+  const providerMap = { 'claude-': 'anthropic/', 'gpt-': 'openai/', 'o3': 'openai/', 'o4': 'openai/', 'gemini-': 'google/' };
+  for (const [prefix, provider] of Object.entries(providerMap)) {
+    if (modelId.startsWith(prefix) || noDate.startsWith(prefix)) {
+      const fullId = provider + noDate;
+      if (openRouterPrices[fullId]) return openRouterPrices[fullId];
+      // Fuzzy: find best match containing the slug
+      const match = Object.keys(openRouterPrices).find(k => k.startsWith(provider) && (k.includes(noDate) || noDate.includes(k.split('/')[1])));
+      if (match) return openRouterPrices[match];
+    }
+  }
+  return null;
+}
+
+function applyOpenRouterPrices() {
+  let updated = 0;
+  for (const [id, model] of Object.entries(MODELS)) {
+    const price = matchOpenRouterPrice(id);
+    if (price && price.priceIn > 0) {
+      model.priceIn = Math.round(price.priceIn * 100) / 100;
+      model.priceOut = Math.round(price.priceOut * 100) / 100;
+      updated++;
+    }
+  }
+  if (updated) renderModels();
+}
 
 // =====================================================================
 // Models registry
@@ -347,6 +408,7 @@ async function onKeyChange() {
     try { await fetchGeminiModels(geminiKey); } catch(e) { console.warn('Gemini models fetch failed:', e); }
     fetchingModels = false;
   }
+  applyOpenRouterPrices();
   renderModels();
 }
 
@@ -1013,6 +1075,7 @@ function exportHistory() {
 // =====================================================================
 
 renderModels();
+fetchOpenRouterPrices();
 
 // Listen for prompt changes
 document.getElementById('userPrompt').addEventListener('input', updateRunButton);

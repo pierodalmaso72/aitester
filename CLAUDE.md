@@ -44,7 +44,7 @@ Single-page HTML app para testar e comparar modelos AI de 3 providers (Anthropic
 - Resultados em colunas lado a lado (JSON formatado, tokens, custo EUR)
 - Histórico na sessão (perde-se ao fechar tab)
 - Export para .md
-- Preços editáveis com fetch via Gemini Flash-Lite (ícone 🔄)
+- Preços auto-fetch via OpenRouter API (sem auth) + editáveis + fetch manual via Gemini Flash-Lite (ícone 🔄)
 
 ## Versioning
 
