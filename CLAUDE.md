@@ -46,6 +46,13 @@ Single-page HTML app para testar e comparar modelos AI de 3 providers (Anthropic
 - Export para .md
 - Preços editáveis com fetch via Gemini Flash-Lite (ícone 🔄)
 
+## Versioning
+
+- **SemVer** (MAJOR.MINOR.PATCH)
+- Versão actual: ver `<h1>` no `aitester.html`
+- CHANGELOG.md segue formato [Keep a Changelog](https://keepachangelog.com/)
+- Ao fazer bump: actualizar versão no `<h1>` do HTML + entrada no CHANGELOG.md
+
 ## Convenções
 
 - **Linguagem:** JavaScript vanilla (inline no HTML)
