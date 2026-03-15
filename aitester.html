@@ -78,6 +78,8 @@ select { cursor: pointer; }
 .btn-primary { background: var(--accent); color: white; }
 .btn-primary:hover { background: var(--accent2); }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-stop { background: var(--red); }
+.btn-stop:hover { background: #ef4444; }
 .btn-secondary { background: var(--bg3); color: var(--fg); border: 1px solid var(--border); }
 .btn-secondary:hover { background: var(--border); }
 .btn-sm { padding: 4px 10px; font-size: 0.75rem; }
@@ -559,7 +561,7 @@ function toggleModel(id, checked) {
 function updateRunButton() {
   const hasKey = document.getElementById('keyAnthropic').value || document.getElementById('keyOpenAI').value || document.getElementById('keyGemini').value;
   const hasPrompt = document.getElementById('userPrompt').value.trim();
-  document.getElementById('runBtn').disabled = !(hasKey && hasPrompt && selectedModels.size > 0);
+  if (!isRunning) document.getElementById('runBtn').disabled = !(hasKey && hasPrompt && selectedModels.size > 0);
 }
 
 // =====================================================================
@@ -689,7 +691,7 @@ function closePriceDialog() {
 // API Calls
 // =====================================================================
 
-async function callAnthropic(modelId, systemPrompt, userPrompt, files) {
+async function callAnthropic(modelId, systemPrompt, userPrompt, files, signal) {
   const key = document.getElementById('keyAnthropic').value.trim();
   const content = [];
 
@@ -718,6 +720,7 @@ async function callAnthropic(modelId, systemPrompt, userPrompt, files) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
+    signal,
   });
 
   const data = await res.json();
@@ -727,7 +730,7 @@ async function callAnthropic(modelId, systemPrompt, userPrompt, files) {
   return { text, tokensIn: data.usage?.input_tokens || 0, tokensOut: data.usage?.output_tokens || 0 };
 }
 
-async function callOpenAI(modelId, systemPrompt, userPrompt, files) {
+async function callOpenAI(modelId, systemPrompt, userPrompt, files, signal) {
   const key = document.getElementById('keyOpenAI').value.trim();
   const messages = [];
 
@@ -749,6 +752,7 @@ async function callOpenAI(modelId, systemPrompt, userPrompt, files) {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    signal,
   });
 
   const data = await res.json();
@@ -758,7 +762,7 @@ async function callOpenAI(modelId, systemPrompt, userPrompt, files) {
   return { text, tokensIn: data.usage?.prompt_tokens || 0, tokensOut: data.usage?.completion_tokens || 0 };
 }
 
-async function callGemini(modelId, systemPrompt, userPrompt, files) {
+async function callGemini(modelId, systemPrompt, userPrompt, files, signal) {
   const key = document.getElementById('keyGemini').value.trim();
   const parts = [];
 
@@ -774,6 +778,7 @@ async function callGemini(modelId, systemPrompt, userPrompt, files) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ contents: [{ parts }] }),
+    signal,
   });
 
   const data = await res.json();
@@ -784,11 +789,11 @@ async function callGemini(modelId, systemPrompt, userPrompt, files) {
   return { text, tokensIn: usage.promptTokenCount || 0, tokensOut: usage.candidatesTokenCount || 0 };
 }
 
-async function callModel(modelId, systemPrompt, userPrompt, files) {
+async function callModel(modelId, systemPrompt, userPrompt, files, signal) {
   const provider = MODELS[modelId].provider;
-  if (provider === 'anthropic') return callAnthropic(modelId, systemPrompt, userPrompt, files);
-  if (provider === 'openai') return callOpenAI(modelId, systemPrompt, userPrompt, files);
-  if (provider === 'gemini') return callGemini(modelId, systemPrompt, userPrompt, files);
+  if (provider === 'anthropic') return callAnthropic(modelId, systemPrompt, userPrompt, files, signal);
+  if (provider === 'openai') return callOpenAI(modelId, systemPrompt, userPrompt, files, signal);
+  if (provider === 'gemini') return callGemini(modelId, systemPrompt, userPrompt, files, signal);
   throw new Error(`Unknown provider: ${provider}`);
 }
 
@@ -797,6 +802,8 @@ async function callModel(modelId, systemPrompt, userPrompt, files) {
 // =====================================================================
 
 let nextGroupId = 1;
+let runAbortController = null;
+let isRunning = false;
 
 async function runSingleBatch(systemPrompt, userPrompt, files, models, groupId, fileLabel) {
   const runId = history.length + 1;
@@ -835,7 +842,7 @@ async function runSingleBatch(systemPrompt, userPrompt, files, models, groupId, 
   const promises = models.map(async (modelId) => {
     const start = performance.now();
     try {
-      const result = await callModel(modelId, systemPrompt, userPrompt, files);
+      const result = await callModel(modelId, systemPrompt, userPrompt, files, runAbortController?.signal);
       const elapsed = ((performance.now() - start) / 1000).toFixed(1);
       const m = MODELS[modelId];
       const costEUR = ((result.tokensIn * m.priceIn + result.tokensOut * m.priceOut) / 1_000_000 * usdToEur);
@@ -847,7 +854,8 @@ async function runSingleBatch(systemPrompt, userPrompt, files, models, groupId, 
       renderResult(modelId, run.results[modelId]);
     } catch (e) {
       const elapsed = ((performance.now() - start) / 1000).toFixed(1);
-      run.results[modelId] = { text: '', tokensIn: 0, tokensOut: 0, costEUR: 0, elapsed, error: e.message };
+      const msg = e.name === 'AbortError' ? 'Cancelado' : e.message;
+      run.results[modelId] = { text: '', tokensIn: 0, tokensOut: 0, costEUR: 0, elapsed, error: msg };
       renderResult(modelId, run.results[modelId]);
     }
   });
@@ -857,32 +865,53 @@ async function runSingleBatch(systemPrompt, userPrompt, files, models, groupId, 
   return runId;
 }
 
+function stopTests() {
+  if (runAbortController) {
+    runAbortController.abort();
+    runAbortController = null;
+  }
+}
+
 async function runTests() {
+  if (isRunning) { stopTests(); return; }
+
   const systemPrompt = document.getElementById('systemPrompt').value.trim();
   const userPrompt = document.getElementById('userPrompt').value.trim();
   const models = [...selectedModels];
 
   if (!models.length || !userPrompt) return;
 
-  document.getElementById('runBtn').disabled = true;
+  isRunning = true;
+  runAbortController = new AbortController();
+  const btn = document.getElementById('runBtn');
+  btn.textContent = 'Stop';
+  btn.classList.add('btn-stop');
+
   const mode = getFileMode();
   const groupId = nextGroupId++;
 
-  if (uploadedFiles.length > 1 && mode === 'sequential') {
-    // Sequential: one run per file
-    for (let i = 0; i < uploadedFiles.length; i++) {
-      const lastId = await runSingleBatch(systemPrompt, userPrompt, [uploadedFiles[i]], models, groupId, `Ficheiro ${i + 1}/${uploadedFiles.length}: ${uploadedFiles[i].name}`);
+  try {
+    if (uploadedFiles.length > 1 && mode === 'sequential') {
+      for (let i = 0; i < uploadedFiles.length; i++) {
+        if (runAbortController?.signal.aborted) break;
+        const lastId = await runSingleBatch(systemPrompt, userPrompt, [uploadedFiles[i]], models, groupId, `Ficheiro ${i + 1}/${uploadedFiles.length}: ${uploadedFiles[i].name}`);
+        activeHistoryId = lastId;
+        renderHistory();
+      }
+    } else {
+      const lastId = await runSingleBatch(systemPrompt, userPrompt, uploadedFiles, models, groupId, null);
       activeHistoryId = lastId;
       renderHistory();
     }
-  } else {
-    // Single run: no files, one file, or batch mode with all files
-    const lastId = await runSingleBatch(systemPrompt, userPrompt, uploadedFiles, models, groupId, null);
-    activeHistoryId = lastId;
-    renderHistory();
+  } catch (e) {
+    if (e.name !== 'AbortError') console.error(e);
   }
 
-  document.getElementById('runBtn').disabled = false;
+  isRunning = false;
+  runAbortController = null;
+  btn.textContent = 'Run';
+  btn.classList.remove('btn-stop');
+  btn.disabled = false;
 }
 
 function renderResult(modelId, result) {
