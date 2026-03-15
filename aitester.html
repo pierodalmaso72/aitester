@@ -195,14 +195,19 @@ select { cursor: pointer; }
         <label><input type="radio" name="fileMode" value="batch"> Todos num pedido</label>
       </div>
     </div>
+    <div class="actions">
+      <button class="btn btn-primary" id="runBtn" onclick="runTests()" disabled>Run</button>
+    </div>
   </div>
 
   <!-- Models -->
-  <div class="panel">
-    <h2>Modelos <span style="font-size:0.7rem;color:var(--fg2)">(selecciona até 4)</span></h2>
-    <div id="modelsContainer" class="models-grid"></div>
-    <div class="actions">
-      <button class="btn btn-primary" id="runBtn" onclick="runTests()" disabled>Run</button>
+  <div class="panel" id="modelsPanel">
+    <div class="panel-header" onclick="togglePanel('modelsPanel')">
+      <h2>Modelos <span style="font-size:0.7rem;color:var(--fg2)">(selecciona até 4)</span></h2>
+      <span>−</span>
+    </div>
+    <div class="panel-body">
+      <div id="modelsContainer" class="models-grid"></div>
     </div>
   </div>
 
