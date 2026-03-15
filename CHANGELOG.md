@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), using [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-03-15
+
+### Added
+- Auto-fetch model pricing from OpenRouter API on page load (no auth required)
+- Prices update automatically when new models are loaded via provider APIs
+
+### Fixed
+- Model filter input losing focus after typing first character
+
 ## [1.1.1] - 2026-03-15
 
 ### Added
