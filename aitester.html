@@ -139,10 +139,10 @@ select { cursor: pointer; }
   </div>
 
   <!-- API Keys -->
-  <div class="panel collapsed" id="keysPanel">
+  <div class="panel" id="keysPanel">
     <div class="panel-header" onclick="togglePanel('keysPanel')">
       <h2>API Keys</h2>
-      <span id="keysToggle">+</span>
+      <span id="keysToggle">−</span>
     </div>
     <div class="panel-body">
       <div class="keys-row">
@@ -1017,6 +1017,17 @@ renderModels();
 // Listen for prompt changes
 document.getElementById('userPrompt').addEventListener('input', updateRunButton);
 document.getElementById('systemPrompt').addEventListener('input', updateRunButton);
+
+// Auto-collapse API keys when clicking outside and all 3 are filled
+document.addEventListener('click', (e) => {
+  const panel = document.getElementById('keysPanel');
+  if (panel.classList.contains('collapsed')) return;
+  if (panel.contains(e.target)) return;
+  const hasAll = document.getElementById('keyAnthropic').value.trim()
+    && document.getElementById('keyOpenAI').value.trim()
+    && document.getElementById('keyGemini').value.trim();
+  if (hasAll) togglePanel('keysPanel');
+});
 </script>
 </body>
 </html>
