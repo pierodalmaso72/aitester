@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Model Playground</title>
+<style>
+:root {
+  --bg: #1a1b2e; --bg2: #232440; --bg3: #2a2b4a;
+  --fg: #e0e0f0; --fg2: #a0a0c0; --accent: #6c7bff;
+  --accent2: #4a5adf; --green: #4ade80; --red: #f87171;
+  --orange: #fb923c; --border: #3a3b5a; --radius: 8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--fg); min-height: 100vh; }
+h1 { font-size: 1.3rem; font-weight: 600; }
+h2 { font-size: 1rem; font-weight: 600; color: var(--fg2); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; font-size: 0.75rem; }
+
+.app { max-width: 1400px; margin: 0 auto; padding: 16px; }
+.header { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+
+/* Panels */
+.panel { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+.panel-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
+.panel-header:hover { color: var(--accent); }
+.panel-body { margin-top: 12px; }
+.panel.collapsed .panel-body { display: none; }
+
+/* Form */
+.field { margin-bottom: 10px; }
+.field label { display: block; font-size: 0.8rem; color: var(--fg2); margin-bottom: 4px; }
+input[type="text"], input[type="password"], input[type="number"], textarea, select {
+  width: 100%; padding: 8px 10px; background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--fg); font-size: 0.85rem; font-family: inherit;
+}
+input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); }
+textarea { resize: vertical; min-height: 60px; font-family: 'Consolas', 'Monaco', monospace; font-size: 0.8rem; }
+select { cursor: pointer; }
+
+.row { display: flex; gap: 10px; }
+.row > * { flex: 1; }
+
+/* Keys */
+.keys-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.key-input { position: relative; }
+.key-input input { padding-right: 60px; }
+.key-status { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; }
+.key-status.ok { background: rgba(74,222,128,0.2); color: var(--green); }
+.key-status.missing { background: rgba(248,113,113,0.2); color: var(--red); }
+
+/* File upload */
+.drop-zone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 20px; text-align: center; color: var(--fg2); cursor: pointer; transition: border-color 0.2s; }
+.drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); color: var(--accent); }
+.drop-zone .file-info { color: var(--green); font-weight: 500; }
+
+/* Models */
+.models-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 6px; }
+.model-group h3 { font-size: 0.75rem; color: var(--accent); margin: 8px 0 4px; text-transform: uppercase; letter-spacing: 1px; }
+.model-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: var(--bg3); border-radius: var(--radius); font-size: 0.8rem; }
+.model-item input[type="checkbox"] { accent-color: var(--accent); }
+.model-item .name { flex: 1; }
+.model-item .price { display: flex; gap: 4px; align-items: center; }
+.model-item .price input { width: 50px; padding: 2px 4px; font-size: 0.75rem; text-align: right; }
+.model-item .price span { color: var(--fg2); font-size: 0.7rem; }
+.price-fetch { background: none; border: none; color: var(--fg2); cursor: pointer; font-size: 0.8rem; padding: 2px; }
+.price-fetch:hover { color: var(--accent); }
+
+/* Buttons */
+.btn { padding: 8px 20px; border: none; border-radius: var(--radius); cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: background 0.2s; }
+.btn-primary { background: var(--accent); color: white; }
+.btn-primary:hover { background: var(--accent2); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-secondary { background: var(--bg3); color: var(--fg); border: 1px solid var(--border); }
+.btn-secondary:hover { background: var(--border); }
+.btn-sm { padding: 4px 10px; font-size: 0.75rem; }
+
+.actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+
+/* Results */
+.results-grid { display: grid; gap: 12px; margin-top: 12px; }
+.results-grid.cols-1 { grid-template-columns: 1fr; }
+.results-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+.results-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+.results-grid.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+.result-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.result-header { padding: 10px 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.result-header .model-name { font-weight: 600; font-size: 0.85rem; }
+.result-meta { display: flex; gap: 12px; font-size: 0.7rem; color: var(--fg2); }
+.result-meta .cost { color: var(--green); font-weight: 600; }
+.result-body { padding: 12px; max-height: 500px; overflow-y: auto; }
+.result-body pre { font-size: 0.75rem; font-family: 'Consolas', 'Monaco', monospace; white-space: pre-wrap; word-break: break-word; line-height: 1.5; }
+.result-body .error { color: var(--red); }
+.result-body .loading { color: var(--fg2); }
+
+/* JSON syntax */
+.json-key { color: #7dd3fc; }
+.json-string { color: #86efac; }
+.json-number { color: #fbbf24; }
+.json-bool { color: #c084fc; }
+.json-null { color: #9ca3af; }
+
+/* History */
+.history { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 0; }
+.history-item { padding: 4px 10px; font-size: 0.75rem; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; color: var(--fg2); }
+.history-item:hover, .history-item.active { border-color: var(--accent); color: var(--accent); }
+
+/* Dialog */
+.dialog-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.dialog { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; min-width: 300px; max-width: 400px; }
+.dialog h3 { margin-bottom: 12px; }
+.dialog .actions { margin-top: 16px; }
+
+/* Spinner */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
+
+@media (max-width: 768px) {
+  .keys-row { grid-template-columns: 1fr; }
+  .results-grid.cols-3, .results-grid.cols-4 { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>AI Model Playground</h1>
+    <span style="color:var(--fg2);font-size:0.75rem">v1.0 — Browser-only, no server needed</span>
+  </div>
+
+  <!-- API Keys -->
+  <div class="panel collapsed" id="keysPanel">
+    <div class="panel-header" onclick="togglePanel('keysPanel')">
+      <h2>API Keys</h2>
+      <span id="keysToggle">+</span>
+    </div>
+    <div class="panel-body">
+      <div class="keys-row">
+        <div class="field key-input">
+          <label>Anthropic</label>
+          <input type="password" id="keyAnthropic" placeholder="sk-ant-..." oninput="onKeyChange()">
+        </div>
+        <div class="field key-input">
+          <label>OpenAI</label>
+          <input type="password" id="keyOpenAI" placeholder="sk-proj-..." oninput="onKeyChange()">
+        </div>
+        <div class="field key-input">
+          <label>Google Gemini</label>
+          <input type="password" id="keyGemini" placeholder="AIza..." oninput="onKeyChange()">
+        </div>
+      </div>
+      <div style="font-size:0.7rem;color:var(--fg2);margin-top:4px">Keys ficam em memória — não são guardadas. Ao meter key OpenAI/Gemini, os modelos são carregados automaticamente.</div>
+    </div>
+  </div>
+
+  <!-- Prompts -->
+  <div class="panel">
+    <h2>Prompts</h2>
+    <div class="field">
+      <label>Preset</label>
+      <select id="presetSelect" onchange="loadPreset()">
+        <option value="custom">Custom</option>
+        <option value="prefilter">Prefilter Gate</option>
+        <option value="qrcomplement">QR Complement</option>
+        <option value="fullanalysis">Full Analysis</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>System Prompt</label>
+      <textarea id="systemPrompt" rows="3" placeholder="System prompt (opcional)"></textarea>
+    </div>
+    <div class="field">
+      <label>User Prompt</label>
+      <textarea id="userPrompt" rows="5" placeholder="User prompt..."></textarea>
+    </div>
+    <div class="field">
+      <label>Ficheiro (opcional)</label>
+      <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+        <span id="dropText">Arrasta ficheiro aqui ou clica para seleccionar</span>
+        <input type="file" id="fileInput" style="display:none" onchange="handleFileSelect(event)">
+      </div>
+    </div>
+  </div>
+
+  <!-- Models -->
+  <div class="panel">
+    <h2>Modelos <span style="font-size:0.7rem;color:var(--fg2)">(selecciona até 4)</span></h2>
+    <div id="modelsContainer" class="models-grid"></div>
+    <div class="actions">
+      <button class="btn btn-primary" id="runBtn" onclick="runTests()" disabled>Run</button>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="resultsPanel" style="display:none">
+    <div class="panel">
+      <h2>Resultados</h2>
+      <div id="resultsGrid" class="results-grid"></div>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div id="historyPanel" style="display:none">
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h2>Histórico</h2>
+        <button class="btn btn-secondary btn-sm" onclick="exportHistory()">Export .md</button>
+      </div>
+      <div id="historyList" class="history"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Price Dialog -->
+<div class="dialog-overlay" id="priceDialog" style="display:none">
+  <div class="dialog">
+    <h3>Preço do modelo</h3>
+    <p id="priceDialogModel" style="color:var(--fg2);font-size:0.85rem;margin-bottom:12px"></p>
+    <div class="row">
+      <div class="field">
+        <label>Input $/M</label>
+        <input type="number" id="priceDialogIn" step="0.01">
+      </div>
+      <div class="field">
+        <label>Output $/M</label>
+        <input type="number" id="priceDialogOut" step="0.01">
+      </div>
+    </div>
+    <p id="priceDialogSource" style="font-size:0.7rem;color:var(--fg2);margin-top:8px"></p>
+    <div class="actions">
+      <button class="btn btn-secondary" onclick="closePriceDialog()">Cancelar</button>
+      <button class="btn btn-primary" onclick="acceptPrice()">Aceitar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// =====================================================================
+// State
+// =====================================================================
+
+let uploadedFile = null; // { name, size, mimeType, base64 }
+let history = []; // [{ id, timestamp, prompt, systemPrompt, file, models, results }]
+let activeHistoryId = null;
+let selectedModels = new Set();
+let priceDialogTarget = null;
+
+// =====================================================================
+// Models registry
+// =====================================================================
+
+const MODELS = {
+  // Anthropic (hardcoded)
+  'claude-haiku-4-5-20251001': { provider: 'anthropic', name: 'Haiku 4.5', priceIn: 1, priceOut: 5 },
+  'claude-sonnet-4-20250514': { provider: 'anthropic', name: 'Sonnet 4.6', priceIn: 3, priceOut: 15 },
+  'claude-opus-4-20250514': { provider: 'anthropic', name: 'Opus 4.6', priceIn: 5, priceOut: 25 },
+};
+
+const PROVIDER_LABELS = { anthropic: 'Anthropic', openai: 'OpenAI', gemini: 'Google Gemini' };
+
+// =====================================================================
+// Presets
+// =====================================================================
+
+const PRESETS = {
+  custom: { system: '', user: '' },
+  prefilter: {
+    system: '',
+    user: `Olha para este documento e responde APENAS com um JSON:\n\n{\n  "contabilistico": true ou false,\n  "motivo": "razao curta"\n}\n\nResponde true APENAS se for: factura, recibo, nota de credito, ou extracto bancario.\nResponde false para TUDO o resto.`
+  },
+  qrcomplement: {
+    system: `Es um assistente especializado em contabilidade portuguesa.\nConheces o SNC (Sistema de Normalizacao Contabilistica) e o plano de contas portugues.\nExtrais dados de documentos fiscais com precisao.\nRespondes SEMPRE em JSON valido, sem texto adicional.\nUsas formato de data YYYY-MM-DD.\nValores monetarios em EUR com 2 casas decimais.`,
+    user: `Este documento ja foi processado pelo QR Code AT. Preciso apenas que:\n1. Identifiques o NOME da empresa emitente (quem emitiu o documento)\n2. Se vires um codigo ATCUD impresso como texto no documento (ex: "ATCUD: J6JWPXCP-0450439"), inclui-o\n3. Descreve a natureza do gasto como um contabilista descreveria para o lancamento\n\nResponde APENAS com JSON:\n{\n  "nomeEmitente": "Nome da empresa",\n  "atcud": "codigo ATCUD se visivel, ou null",\n  "naturezaGasto": "descricao contabilistica do gasto"\n}`
+  },
+  fullanalysis: {
+    system: `Es um assistente especializado em contabilidade portuguesa.\nConheces o SNC (Sistema de Normalizacao Contabilistica) e o plano de contas portugues.\nExtrais dados de documentos fiscais com precisao.\nRespondes SEMPRE em JSON valido, sem texto adicional.\nUsas formato de data YYYY-MM-DD.\nValores monetarios em EUR com 2 casas decimais.`,
+    user: `Analisa este documento contabilistico e devolve um JSON com a seguinte estrutura exacta:\n\n{\n  "tipoDoc": "FC|DSP|NCF|REC|EXT|UNKNOWN",\n  "confianca": 0.95,\n  "nifEmitente": "123456789",\n  "nomeEmitente": "Nome da empresa emitente",\n  "nifDestinatario": "987654321",\n  "nomeDestinatario": "Nome da empresa destinataria",\n  "dataDocumento": "2026-03-01",\n  "numeroDocumento": "FC 2026/123",\n  "valorTotal": 123.45,\n  "valorIVA": 23.45,\n  "valorBase": 100.00,\n  "taxaIVA": 23,\n  "moeda": "EUR",\n  "atcud": "codigo ATCUD se visivel, ou null",\n  "temQRCode": true,\n  "naturezaGasto": "Fornecimento de energia electrica"\n}\n\nRegras:\n- tipoDoc: FC=fatura compra, DSP=despesa, NCF=nota credito fornecedor, REC=recibo, EXT=extracto bancario, UNKNOWN=nao identificado\n- confianca: 0 a 1\n- NIF: 9 digitos PT, vazio se estrangeiro\n- Datas YYYY-MM-DD\n- Valores numericos sem simbolo\n- naturezaGasto: descreve como um contabilista faria\n- Responde APENAS com JSON\n\nIMPORTANTE — UNKNOWN para: proformas, ordens de compra, orcamentos, guias de transporte.`
+  },
+};
+
+function loadPreset() {
+  const key = document.getElementById('presetSelect').value;
+  const p = PRESETS[key];
+  document.getElementById('systemPrompt').value = p.system;
+  document.getElementById('userPrompt').value = p.user;
+}
+
+// =====================================================================
+// Panel toggle
+// =====================================================================
+
+function togglePanel(id) {
+  const panel = document.getElementById(id);
+  panel.classList.toggle('collapsed');
+  const toggle = panel.querySelector('.panel-header span');
+  if (toggle) toggle.textContent = panel.classList.contains('collapsed') ? '+' : '−';
+}
+
+// =====================================================================
+// API Keys & Model loading
+// =====================================================================
+
+let fetchingModels = false;
+
+async function onKeyChange() {
+  updateRunButton();
+  const openaiKey = document.getElementById('keyOpenAI').value.trim();
+  const geminiKey = document.getElementById('keyGemini').value.trim();
+
+  if (openaiKey && !fetchingModels) {
+    fetchingModels = true;
+    try { await fetchOpenAIModels(openaiKey); } catch(e) { console.warn('OpenAI models fetch failed:', e); }
+    fetchingModels = false;
+  }
+  if (geminiKey && !fetchingModels) {
+    fetchingModels = true;
+    try { await fetchGeminiModels(geminiKey); } catch(e) { console.warn('Gemini models fetch failed:', e); }
+    fetchingModels = false;
+  }
+  renderModels();
+}
+
+async function fetchOpenAIModels(key) {
+  const res = await fetch('https://api.openai.com/v1/models', { headers: { 'Authorization': `Bearer ${key}` } });
+  if (!res.ok) return;
+  const data = await res.json();
+  const relevant = data.data
+    .filter(m => /^(gpt-[45]|o[34])/.test(m.id) && !/(audio|realtime|tts|transcribe|search|diarize|codex|image)/.test(m.id))
+    .map(m => m.id)
+    .sort();
+
+  // Default prices
+  const defaultPrices = {
+    'gpt-4o': [2.5, 10], 'gpt-4o-mini': [0.15, 0.6],
+    'gpt-4.1': [2, 8], 'gpt-4.1-mini': [0.4, 1.6], 'gpt-4.1-nano': [0.1, 0.4],
+    'gpt-5': [1.25, 10], 'gpt-5-mini': [0.25, 2], 'gpt-5-nano': [0.05, 0.4],
+    'gpt-5.1': [1.5, 12], 'gpt-5.2': [1.75, 14], 'gpt-5.4': [2, 8],
+  };
+
+  for (const id of relevant) {
+    if (MODELS[id]) continue;
+    const base = Object.keys(defaultPrices).find(k => id.startsWith(k));
+    const [pIn, pOut] = base ? defaultPrices[base] : [2, 10];
+    MODELS[id] = { provider: 'openai', name: id, priceIn: pIn, priceOut: pOut };
+  }
+}
+
+async function fetchGeminiModels(key) {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+  if (!res.ok) return;
+  const data = await res.json();
+  const relevant = data.models
+    .filter(m => m.supportedGenerationMethods?.includes('generateContent') && /gemini/.test(m.name))
+    .filter(m => !/(tts|image|preview-tts|robotics|computer-use|customtools)/.test(m.name))
+    .map(m => ({ id: m.name.replace('models/', ''), displayName: m.displayName }));
+
+  const defaultPrices = {
+    'gemini-2.5-flash-lite': [0.1, 0.4], 'gemini-2.5-flash': [0.15, 0.6],
+    'gemini-2.5-pro': [1.25, 10], 'gemini-3-flash': [0.5, 3], 'gemini-3.1-pro': [2, 12],
+  };
+
+  for (const { id, displayName } of relevant) {
+    if (MODELS[id]) continue;
+    const base = Object.keys(defaultPrices).find(k => id.startsWith(k));
+    const [pIn, pOut] = base ? defaultPrices[base] : [1, 5];
+    MODELS[id] = { provider: 'gemini', name: displayName || id, priceIn: pIn, priceOut: pOut };
+  }
+}
+
+// =====================================================================
+// Render models
+// =====================================================================
+
+function renderModels() {
+  const container = document.getElementById('modelsContainer');
+  const byProvider = {};
+  for (const [id, m] of Object.entries(MODELS)) {
+    if (!byProvider[m.provider]) byProvider[m.provider] = [];
+    byProvider[m.provider].push({ id, ...m });
+  }
+
+  let html = '';
+  for (const provider of ['anthropic', 'openai', 'gemini']) {
+    const models = byProvider[provider];
+    if (!models?.length) continue;
+    html += `<div class="model-group"><h3>${PROVIDER_LABELS[provider]}</h3>`;
+    for (const m of models) {
+      const checked = selectedModels.has(m.id) ? 'checked' : '';
+      html += `<div class="model-item">
+        <input type="checkbox" ${checked} onchange="toggleModel('${m.id}', this.checked)" id="chk_${m.id}">
+        <label class="name" for="chk_${m.id}" style="cursor:pointer">${m.name}</label>
+        <div class="price">
+          <span>$</span><input type="number" step="0.01" value="${m.priceIn}" id="pin_${m.id}" onchange="MODELS['${m.id}'].priceIn=+this.value" title="Input $/M">
+          <span>/</span><input type="number" step="0.01" value="${m.priceOut}" id="pout_${m.id}" onchange="MODELS['${m.id}'].priceOut=+this.value" title="Output $/M">
+          <button class="price-fetch" onclick="fetchPrice('${m.id}')" title="Buscar preço via Gemini">&#x1f504;</button>
+        </div>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+  container.innerHTML = html;
+}
+
+function toggleModel(id, checked) {
+  if (checked) {
+    if (selectedModels.size >= 4) {
+      document.getElementById('chk_' + id).checked = false;
+      return;
+    }
+    selectedModels.add(id);
+  } else {
+    selectedModels.delete(id);
+  }
+  updateRunButton();
+}
+
+function updateRunButton() {
+  const hasKey = document.getElementById('keyAnthropic').value || document.getElementById('keyOpenAI').value || document.getElementById('keyGemini').value;
+  const hasPrompt = document.getElementById('userPrompt').value.trim();
+  document.getElementById('runBtn').disabled = !(hasKey && hasPrompt && selectedModels.size > 0);
+}
+
+// =====================================================================
+// File upload
+// =====================================================================
+
+function handleDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('dragover'); }
+function handleDragLeave(e) { e.currentTarget.classList.remove('dragover'); }
+
+function handleDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('dragover');
+  if (e.dataTransfer.files.length) processFile(e.dataTransfer.files[0]);
+}
+
+function handleFileSelect(e) {
+  if (e.target.files.length) processFile(e.target.files[0]);
+}
+
+function processFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const base64 = reader.result.split(',')[1];
+    uploadedFile = { name: file.name, size: file.size, mimeType: file.type || 'application/octet-stream', base64 };
+    document.getElementById('dropText').innerHTML = `<span class="file-info">${file.name} (${(file.size/1024).toFixed(0)} KB)</span>`;
+    updateRunButton();
+  };
+  reader.readAsDataURL(file);
+}
+
+// =====================================================================
+// Price fetch via Gemini Flash-Lite
+// =====================================================================
+
+async function fetchPrice(modelId) {
+  const geminiKey = document.getElementById('keyGemini').value.trim();
+  if (!geminiKey) { alert('Coloca a key Gemini primeiro'); return; }
+
+  priceDialogTarget = modelId;
+  const model = MODELS[modelId];
+  document.getElementById('priceDialogModel').textContent = `${model.name} (${modelId})`;
+  document.getElementById('priceDialogIn').value = model.priceIn;
+  document.getElementById('priceDialogOut').value = model.priceOut;
+  document.getElementById('priceDialogSource').textContent = 'A consultar Gemini Flash-Lite...';
+  document.getElementById('priceDialog').style.display = 'flex';
+
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: `What is the current API pricing for the AI model "${modelId}"? Reply ONLY with JSON: {"inputPerM": number, "outputPerM": number} where values are USD per million tokens.` }] }],
+      }),
+    });
+    const data = await res.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const m = text.match(/\{[\s\S]*\}/);
+    if (m) {
+      const parsed = JSON.parse(m[0]);
+      document.getElementById('priceDialogIn').value = parsed.inputPerM || model.priceIn;
+      document.getElementById('priceDialogOut').value = parsed.outputPerM || model.priceOut;
+      document.getElementById('priceDialogSource').textContent = `Via Gemini Flash-Lite — verifica e aceita ou edita`;
+    } else {
+      document.getElementById('priceDialogSource').textContent = `Gemini não devolveu preço — edita manualmente`;
+    }
+  } catch (e) {
+    document.getElementById('priceDialogSource').textContent = `Erro: ${e.message}`;
+  }
+}
+
+function acceptPrice() {
+  if (priceDialogTarget) {
+    MODELS[priceDialogTarget].priceIn = +document.getElementById('priceDialogIn').value;
+    MODELS[priceDialogTarget].priceOut = +document.getElementById('priceDialogOut').value;
+    renderModels();
+    // Re-check previously selected
+    for (const id of selectedModels) {
+      const el = document.getElementById('chk_' + id);
+      if (el) el.checked = true;
+    }
+  }
+  closePriceDialog();
+}
+
+function closePriceDialog() {
+  document.getElementById('priceDialog').style.display = 'none';
+  priceDialogTarget = null;
+}
+
+// =====================================================================
+// API Calls
+// =====================================================================
+
+async function callAnthropic(modelId, systemPrompt, userPrompt, file) {
+  const key = document.getElementById('keyAnthropic').value.trim();
+  const content = [];
+
+  if (file) {
+    const isImage = file.mimeType.startsWith('image/');
+    content.push(isImage
+      ? { type: 'image', source: { type: 'base64', media_type: file.mimeType, data: file.base64 } }
+      : { type: 'document', source: { type: 'base64', media_type: file.mimeType, data: file.base64 } }
+    );
+  }
+  content.push({ type: 'text', text: userPrompt });
+
+  const body = {
+    model: modelId,
+    max_tokens: 4096,
+    messages: [{ role: 'user', content }],
+  };
+  if (systemPrompt) body.system = systemPrompt;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+
+  const text = data.content?.find(b => b.type === 'text')?.text || '';
+  return { text, tokensIn: data.usage?.input_tokens || 0, tokensOut: data.usage?.output_tokens || 0 };
+}
+
+async function callOpenAI(modelId, systemPrompt, userPrompt, file) {
+  const key = document.getElementById('keyOpenAI').value.trim();
+  const messages = [];
+
+  if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
+
+  const userContent = [];
+  if (file) {
+    userContent.push({ type: 'file', file: { filename: file.name, file_data: `data:${file.mimeType};base64,${file.base64}` } });
+  }
+  userContent.push({ type: 'text', text: userPrompt });
+  messages.push({ role: 'user', content: userContent });
+
+  const isReasoning = /^(gpt-5|o[34])/.test(modelId);
+  const body = { model: modelId, messages };
+  if (isReasoning) body.max_completion_tokens = 4096;
+  else body.max_tokens = 4096;
+
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+
+  const text = data.choices?.[0]?.message?.content || '';
+  return { text, tokensIn: data.usage?.prompt_tokens || 0, tokensOut: data.usage?.completion_tokens || 0 };
+}
+
+async function callGemini(modelId, systemPrompt, userPrompt, file) {
+  const key = document.getElementById('keyGemini').value.trim();
+  const parts = [];
+
+  if (file) {
+    parts.push({ inlineData: { mimeType: file.mimeType, data: file.base64 } });
+  }
+
+  let fullPrompt = userPrompt;
+  if (systemPrompt) fullPrompt = systemPrompt + '\n\n' + userPrompt;
+  parts.push({ text: fullPrompt });
+
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${key}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contents: [{ parts }] }),
+  });
+
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const usage = data.usageMetadata || {};
+  return { text, tokensIn: usage.promptTokenCount || 0, tokensOut: usage.candidatesTokenCount || 0 };
+}
+
+async function callModel(modelId, systemPrompt, userPrompt, file) {
+  const provider = MODELS[modelId].provider;
+  if (provider === 'anthropic') return callAnthropic(modelId, systemPrompt, userPrompt, file);
+  if (provider === 'openai') return callOpenAI(modelId, systemPrompt, userPrompt, file);
+  if (provider === 'gemini') return callGemini(modelId, systemPrompt, userPrompt, file);
+  throw new Error(`Unknown provider: ${provider}`);
+}
+
+// =====================================================================
+// Run tests
+// =====================================================================
+
+async function runTests() {
+  const systemPrompt = document.getElementById('systemPrompt').value.trim();
+  const userPrompt = document.getElementById('userPrompt').value.trim();
+  const models = [...selectedModels];
+
+  if (!models.length || !userPrompt) return;
+
+  const runId = history.length + 1;
+  const run = {
+    id: runId,
+    timestamp: new Date().toISOString(),
+    systemPrompt,
+    userPrompt,
+    file: uploadedFile ? { name: uploadedFile.name, size: uploadedFile.size } : null,
+    models: models.map(id => ({ id, ...MODELS[id] })),
+    results: {},
+  };
+
+  // Show results panel with loading
+  document.getElementById('resultsPanel').style.display = 'block';
+  const grid = document.getElementById('resultsGrid');
+  grid.className = `results-grid cols-${models.length}`;
+  grid.innerHTML = models.map(id => `
+    <div class="result-card" id="result_${id}">
+      <div class="result-header">
+        <span class="model-name">${MODELS[id].name}</span>
+        <div class="result-meta"><span class="spinner"></span></div>
+      </div>
+      <div class="result-body"><pre class="loading">A processar...</pre></div>
+    </div>
+  `).join('');
+
+  document.getElementById('runBtn').disabled = true;
+
+  // Run all in parallel
+  const promises = models.map(async (modelId) => {
+    const start = performance.now();
+    try {
+      const result = await callModel(modelId, systemPrompt, userPrompt, uploadedFile);
+      const elapsed = ((performance.now() - start) / 1000).toFixed(1);
+      const m = MODELS[modelId];
+      const costEUR = ((result.tokensIn * m.priceIn + result.tokensOut * m.priceOut) / 1_000_000 * 0.92);
+
+      run.results[modelId] = {
+        text: result.text, tokensIn: result.tokensIn, tokensOut: result.tokensOut,
+        costEUR, elapsed, error: null,
+      };
+      renderResult(modelId, run.results[modelId]);
+    } catch (e) {
+      const elapsed = ((performance.now() - start) / 1000).toFixed(1);
+      run.results[modelId] = { text: '', tokensIn: 0, tokensOut: 0, costEUR: 0, elapsed, error: e.message };
+      renderResult(modelId, run.results[modelId]);
+    }
+  });
+
+  await Promise.all(promises);
+
+  history.push(run);
+  activeHistoryId = runId;
+  renderHistory();
+  document.getElementById('runBtn').disabled = false;
+}
+
+function renderResult(modelId, result) {
+  const card = document.getElementById('result_' + modelId);
+  if (!card) return;
+
+  const meta = result.error
+    ? `<span style="color:var(--red)">Erro</span> <span>${result.elapsed}s</span>`
+    : `<span>${result.tokensIn}+${result.tokensOut} tok</span><span>${result.elapsed}s</span><span class="cost">EUR${result.costEUR.toFixed(4)}</span>`;
+
+  const body = result.error
+    ? `<pre class="error">${escapeHtml(result.error)}</pre>`
+    : `<pre>${formatResponse(result.text)}</pre>`;
+
+  card.querySelector('.result-meta').innerHTML = meta;
+  card.querySelector('.result-body').innerHTML = body;
+}
+
+// =====================================================================
+// Formatting
+// =====================================================================
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function formatResponse(text) {
+  // Try to parse as JSON for syntax highlighting
+  const codeMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+  const jsonStr = codeMatch ? codeMatch[1].trim() : text.trim();
+
+  try {
+    const obj = JSON.parse(jsonStr);
+    return syntaxHighlight(JSON.stringify(obj, null, 2));
+  } catch {
+    return escapeHtml(text);
+  }
+}
+
+function syntaxHighlight(json) {
+  return escapeHtml(json).replace(
+    /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+    (match) => {
+      let cls = 'json-number';
+      if (/^"/.test(match)) cls = /:$/.test(match) ? 'json-key' : 'json-string';
+      else if (/true|false/.test(match)) cls = 'json-bool';
+      else if (/null/.test(match)) cls = 'json-null';
+      return `<span class="${cls}">${match}</span>`;
+    }
+  );
+}
+
+// =====================================================================
+// History
+// =====================================================================
+
+function renderHistory() {
+  const panel = document.getElementById('historyPanel');
+  if (!history.length) { panel.style.display = 'none'; return; }
+  panel.style.display = 'block';
+
+  const list = document.getElementById('historyList');
+  list.innerHTML = history.map(r => {
+    const active = r.id === activeHistoryId ? 'active' : '';
+    const file = r.file ? ` | ${r.file.name}` : '';
+    return `<div class="history-item ${active}" onclick="showHistoryRun(${r.id})">Run ${r.id}${file}</div>`;
+  }).join('');
+}
+
+function showHistoryRun(id) {
+  const run = history.find(r => r.id === id);
+  if (!run) return;
+  activeHistoryId = id;
+
+  const models = run.models.map(m => m.id);
+  const grid = document.getElementById('resultsGrid');
+  grid.className = `results-grid cols-${models.length}`;
+  grid.innerHTML = '';
+
+  for (const modelId of models) {
+    const result = run.results[modelId];
+    if (!result) continue;
+    const m = run.models.find(x => x.id === modelId);
+    const meta = result.error
+      ? `<span style="color:var(--red)">Erro</span>`
+      : `<span>${result.tokensIn}+${result.tokensOut} tok</span><span>${result.elapsed}s</span><span class="cost">EUR${result.costEUR.toFixed(4)}</span>`;
+    const body = result.error
+      ? `<pre class="error">${escapeHtml(result.error)}</pre>`
+      : `<pre>${formatResponse(result.text)}</pre>`;
+
+    grid.innerHTML += `<div class="result-card">
+      <div class="result-header"><span class="model-name">${m.name}</span><div class="result-meta">${meta}</div></div>
+      <div class="result-body">${body}</div>
+    </div>`;
+  }
+
+  document.getElementById('resultsPanel').style.display = 'block';
+  renderHistory();
+}
+
+// =====================================================================
+// Export
+// =====================================================================
+
+function exportHistory() {
+  const lines = ['# AI Model Playground — Export', '', `**Data:** ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`, `**Runs:** ${history.length}`, ''];
+
+  for (const run of history) {
+    lines.push('---', '', `## Run ${run.id}`, '');
+    lines.push(`**Timestamp:** ${run.timestamp}`);
+    if (run.file) lines.push(`**Ficheiro:** ${run.file.name} (${(run.file.size/1024).toFixed(0)} KB)`);
+    if (run.systemPrompt) lines.push('', '**System Prompt:**', '```', run.systemPrompt, '```');
+    lines.push('', '**User Prompt:**', '```', run.userPrompt, '```', '');
+
+    const models = run.models.map(m => m.id);
+    // Header
+    lines.push('| | ' + models.map(id => run.models.find(m=>m.id===id).name).join(' | ') + ' |');
+    lines.push('|---|' + models.map(() => '---|').join(''));
+    lines.push('| Tokens in | ' + models.map(id => run.results[id]?.tokensIn || '—').join(' | ') + ' |');
+    lines.push('| Tokens out | ' + models.map(id => run.results[id]?.tokensOut || '—').join(' | ') + ' |');
+    lines.push('| Tempo | ' + models.map(id => (run.results[id]?.elapsed || '—') + 's').join(' | ') + ' |');
+    lines.push('| Custo | ' + models.map(id => run.results[id]?.error ? 'ERRO' : 'EUR' + (run.results[id]?.costEUR?.toFixed(4) || '—')).join(' | ') + ' |');
+    lines.push('');
+
+    for (const id of models) {
+      const r = run.results[id];
+      const name = run.models.find(m=>m.id===id).name;
+      lines.push(`### ${name}`);
+      if (r?.error) { lines.push('', '**Erro:**', '```', r.error, '```'); }
+      else if (r?.text) { lines.push('', '```json', r.text, '```'); }
+      lines.push('');
+    }
+  }
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `playground-export-${new Date().toISOString().slice(0,10)}.md`;
+  a.click();
+}
+
+// =====================================================================
+// Init
+// =====================================================================
+
+renderModels();
+
+// Listen for prompt changes
+document.getElementById('userPrompt').addEventListener('input', updateRunButton);
+document.getElementById('systemPrompt').addEventListener('input', updateRunButton);
+</script>
+</body>
+</html>
