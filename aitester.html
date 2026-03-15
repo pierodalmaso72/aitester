@@ -269,6 +269,7 @@ let activeHistoryId = null;
 let selectedModels = new Set();
 let priceDialogTarget = null;
 let openRouterPrices = {}; // { 'model-slug': { priceIn, priceOut } }
+let usdToEur = 0.92; // fallback, updated dynamically
 
 // =====================================================================
 // OpenRouter pricing (no auth required)
@@ -335,10 +336,10 @@ function applyOpenRouterPrices() {
 // =====================================================================
 
 const MODELS = {
-  // Anthropic (fallback — overridden by API fetch when key is provided)
-  'claude-haiku-4-5-20251001': { provider: 'anthropic', name: 'Haiku 4.5', priceIn: 1, priceOut: 5 },
-  'claude-sonnet-4-20250514': { provider: 'anthropic', name: 'Sonnet 4.6', priceIn: 3, priceOut: 15 },
-  'claude-opus-4-20250514': { provider: 'anthropic', name: 'Opus 4.6', priceIn: 5, priceOut: 25 },
+  // Anthropic (fallback — overridden by API fetch when key is provided, prices from OpenRouter)
+  'claude-haiku-4-5-20251001': { provider: 'anthropic', name: 'Haiku 4.5', priceIn: 0, priceOut: 0 },
+  'claude-sonnet-4-20250514': { provider: 'anthropic', name: 'Sonnet 4.6', priceIn: 0, priceOut: 0 },
+  'claude-opus-4-20250514': { provider: 'anthropic', name: 'Opus 4.6', priceIn: 0, priceOut: 0 },
 };
 
 const PROVIDER_LABELS = { anthropic: 'Anthropic', openai: 'OpenAI', gemini: 'Google Gemini' };
@@ -427,18 +428,11 @@ async function fetchAnthropicModels(key) {
     .map(m => m.id)
     .sort();
 
-  const defaultPrices = {
-    'claude-opus-4': [15, 75], 'claude-sonnet-4': [3, 15],
-    'claude-haiku-4': [1, 5], 'claude-3-5-sonnet': [3, 15],
-    'claude-3-5-haiku': [0.8, 4], 'claude-3-opus': [15, 75],
-  };
-
   for (const id of models) {
     if (MODELS[id]) continue;
-    const base = Object.keys(defaultPrices).find(k => id.startsWith(k));
-    const [pIn, pOut] = base ? defaultPrices[base] : [3, 15];
     const name = id.replace(/^claude-/, '').replace(/-\d{8}$/, '').replace(/-/g, ' ');
-    MODELS[id] = { provider: 'anthropic', name, priceIn: pIn, priceOut: pOut };
+    const price = matchOpenRouterPrice(id);
+    MODELS[id] = { provider: 'anthropic', name, priceIn: price?.priceIn || 0, priceOut: price?.priceOut || 0 };
   }
 }
 
@@ -451,19 +445,10 @@ async function fetchOpenAIModels(key) {
     .map(m => m.id)
     .sort();
 
-  // Default prices
-  const defaultPrices = {
-    'gpt-4o': [2.5, 10], 'gpt-4o-mini': [0.15, 0.6],
-    'gpt-4.1': [2, 8], 'gpt-4.1-mini': [0.4, 1.6], 'gpt-4.1-nano': [0.1, 0.4],
-    'gpt-5': [1.25, 10], 'gpt-5-mini': [0.25, 2], 'gpt-5-nano': [0.05, 0.4],
-    'gpt-5.1': [1.5, 12], 'gpt-5.2': [1.75, 14], 'gpt-5.4': [2, 8],
-  };
-
   for (const id of relevant) {
     if (MODELS[id]) continue;
-    const base = Object.keys(defaultPrices).find(k => id.startsWith(k));
-    const [pIn, pOut] = base ? defaultPrices[base] : [2, 10];
-    MODELS[id] = { provider: 'openai', name: id, priceIn: pIn, priceOut: pOut };
+    const price = matchOpenRouterPrice(id);
+    MODELS[id] = { provider: 'openai', name: id, priceIn: price?.priceIn || 0, priceOut: price?.priceOut || 0 };
   }
 }
 
@@ -476,16 +461,10 @@ async function fetchGeminiModels(key) {
     .filter(m => !/(tts|image|preview-tts|robotics|computer-use|customtools)/.test(m.name))
     .map(m => ({ id: m.name.replace('models/', ''), displayName: m.displayName }));
 
-  const defaultPrices = {
-    'gemini-2.5-flash-lite': [0.1, 0.4], 'gemini-2.5-flash': [0.15, 0.6],
-    'gemini-2.5-pro': [1.25, 10], 'gemini-3-flash': [0.5, 3], 'gemini-3.1-pro': [2, 12],
-  };
-
   for (const { id, displayName } of relevant) {
     if (MODELS[id]) continue;
-    const base = Object.keys(defaultPrices).find(k => id.startsWith(k));
-    const [pIn, pOut] = base ? defaultPrices[base] : [1, 5];
-    MODELS[id] = { provider: 'gemini', name: displayName || id, priceIn: pIn, priceOut: pOut };
+    const price = matchOpenRouterPrice(id);
+    MODELS[id] = { provider: 'gemini', name: displayName || id, priceIn: price?.priceIn || 0, priceOut: price?.priceOut || 0 };
   }
 }
 
@@ -824,7 +803,7 @@ async function runSingleBatch(systemPrompt, userPrompt, files, models, groupId, 
       const result = await callModel(modelId, systemPrompt, userPrompt, files);
       const elapsed = ((performance.now() - start) / 1000).toFixed(1);
       const m = MODELS[modelId];
-      const costEUR = ((result.tokensIn * m.priceIn + result.tokensOut * m.priceOut) / 1_000_000 * 0.92);
+      const costEUR = ((result.tokensIn * m.priceIn + result.tokensOut * m.priceOut) / 1_000_000 * usdToEur);
 
       run.results[modelId] = {
         text: result.text, tokensIn: result.tokensIn, tokensOut: result.tokensOut,
@@ -1075,11 +1054,30 @@ function exportHistory() {
 }
 
 // =====================================================================
+// Exchange rate
+// =====================================================================
+
+async function fetchExchangeRate() {
+  try {
+    const res = await fetch('https://open.er-api.com/v6/latest/USD');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.rates?.EUR) {
+      usdToEur = data.rates.EUR;
+      console.log(`Exchange rate: 1 USD = ${usdToEur} EUR`);
+    }
+  } catch (e) {
+    console.warn('Exchange rate fetch failed, using fallback:', e);
+  }
+}
+
+// =====================================================================
 // Init
 // =====================================================================
 
 renderModels();
 fetchOpenRouterPrices();
+fetchExchangeRate();
 
 // Listen for prompt changes
 document.getElementById('userPrompt').addEventListener('input', updateRunButton);
