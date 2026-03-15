@@ -111,9 +111,13 @@ select { cursor: pointer; }
 .json-null { color: #9ca3af; }
 
 /* History */
-.history { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 0; }
-.history-item { padding: 4px 10px; font-size: 0.75rem; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; color: var(--fg2); }
+.history { display: flex; flex-direction: column; gap: 4px; padding: 8px 0; }
+.history-item { display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 0.75rem; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; color: var(--fg2); }
 .history-item:hover, .history-item.active { border-color: var(--accent); color: var(--accent); }
+.history-item .hist-time { color: var(--fg2); font-size: 0.65rem; white-space: nowrap; }
+.history-item .hist-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-item .hist-remove { background: none; border: none; color: var(--red); cursor: pointer; font-size: 0.8rem; padding: 0 2px; opacity: 0.5; }
+.history-item .hist-remove:hover { opacity: 1; }
 
 /* Dialog */
 .dialog-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 100; }
@@ -738,7 +742,11 @@ async function callOpenAI(modelId, systemPrompt, userPrompt, files, signal) {
 
   const userContent = [];
   for (const file of files) {
-    userContent.push({ type: 'file', file: { filename: file.name, file_data: `data:${file.mimeType};base64,${file.base64}` } });
+    if (file.mimeType.startsWith('image/')) {
+      userContent.push({ type: 'image_url', image_url: { url: `data:${file.mimeType};base64,${file.base64}` } });
+    } else {
+      userContent.push({ type: 'file', file: { filename: file.name, file_data: `data:${file.mimeType};base64,${file.base64}` } });
+    }
   }
   userContent.push({ type: 'text', text: userPrompt });
   messages.push({ role: 'user', content: userContent });
@@ -968,6 +976,28 @@ function syntaxHighlight(json) {
 // History
 // =====================================================================
 
+function formatTime(iso) {
+  return iso.slice(11, 16);
+}
+
+function removeHistoryRun(id, e) {
+  e.stopPropagation();
+  history = history.filter(r => r.id !== id);
+  if (activeHistoryId === id) activeHistoryId = history.length ? history[history.length - 1].id : null;
+  renderHistory();
+  if (!history.length) document.getElementById('resultsPanel').style.display = 'none';
+}
+
+function historyItemHtml(r, onclick) {
+  const active = r.id === activeHistoryId ? 'active' : '';
+  const files = r.files?.length ? r.files.map(f => f.name).join(', ') : '';
+  return `<div class="history-item ${active}" onclick="${onclick}">
+    <span class="hist-time">${formatTime(r.timestamp)}</span>
+    <span class="hist-label">Run ${r.id}${files ? ' | ' + escapeHtml(files) : ''}</span>
+    <button class="hist-remove" onclick="removeHistoryRun(${r.id}, event)" title="Remover">✕</button>
+  </div>`;
+}
+
 function renderHistory() {
   const panel = document.getElementById('historyPanel');
   if (!history.length) { panel.style.display = 'none'; return; }
@@ -977,7 +1007,6 @@ function renderHistory() {
   const list = document.getElementById('historyList');
 
   if (grouped) {
-    // Group by groupId
     const groups = {};
     for (const r of history) {
       const gid = r.groupId || r.id;
@@ -985,22 +1014,16 @@ function renderHistory() {
       groups[gid].push(r);
     }
     list.innerHTML = Object.entries(groups).map(([gid, runs]) => {
-      if (runs.length === 1) {
-        const r = runs[0];
-        const active = r.id === activeHistoryId ? 'active' : '';
-        const files = r.files?.length ? ` | ${r.files.map(f => f.name).join(', ')}` : '';
-        return `<div class="history-item ${active}" onclick="showHistoryRun(${r.id})">Run ${r.id}${files}</div>`;
-      }
+      if (runs.length === 1) return historyItemHtml(runs[0], `showHistoryRun(${runs[0].id})`);
       const isActive = runs.some(r => r.id === activeHistoryId);
       const fileNames = runs.map(r => r.files?.[0]?.name || '').filter(Boolean).join(', ');
-      return `<div class="history-item ${isActive ? 'active' : ''}" onclick="showGroupedRuns(${gid})" title="${escapeHtml(fileNames)}">Grupo ${gid} (${runs.length} runs)</div>`;
+      return `<div class="history-item ${isActive ? 'active' : ''}" onclick="showGroupedRuns(${gid})">
+        <span class="hist-time">${formatTime(runs[0].timestamp)}</span>
+        <span class="hist-label" title="${escapeHtml(fileNames)}">Grupo ${gid} (${runs.length} runs)</span>
+      </div>`;
     }).join('');
   } else {
-    list.innerHTML = history.map(r => {
-      const active = r.id === activeHistoryId ? 'active' : '';
-      const files = r.files?.length ? ` | ${r.files.map(f => f.name).join(', ')}` : '';
-      return `<div class="history-item ${active}" onclick="showHistoryRun(${r.id})">Run ${r.id}${files}</div>`;
-    }).join('');
+    list.innerHTML = history.map(r => historyItemHtml(r, `showHistoryRun(${r.id})`)).join('');
   }
 }
 
