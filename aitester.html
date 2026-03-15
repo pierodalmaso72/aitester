@@ -220,7 +220,10 @@ select { cursor: pointer; }
   <!-- Results -->
   <div id="resultsPanel" style="display:none">
     <div class="panel">
-      <h2>Resultados</h2>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h2>Resultados</h2>
+        <label style="font-size:0.7rem;color:var(--fg2);display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="groupRuns" onchange="onGroupToggle()" style="accent-color:var(--accent)"> Agrupar</label>
+      </div>
       <div id="resultsGrid" class="results-grid"></div>
     </div>
   </div>
@@ -231,7 +234,6 @@ select { cursor: pointer; }
       <div style="display:flex;justify-content:space-between;align-items:center">
         <h2>Histórico</h2>
         <div style="display:flex;gap:8px;align-items:center">
-          <label style="font-size:0.7rem;color:var(--fg2);display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="groupRuns" onchange="renderHistory()" style="accent-color:var(--accent)"> Agrupar</label>
           <button class="btn btn-secondary btn-sm" onclick="exportHistory()">Export .md</button>
         </div>
       </div>
@@ -1024,6 +1026,18 @@ function renderHistory() {
     }).join('');
   } else {
     list.innerHTML = history.map(r => historyItemHtml(r, `showHistoryRun(${r.id})`)).join('');
+  }
+}
+
+function onGroupToggle() {
+  if (!activeHistoryId) return;
+  const run = history.find(r => r.id === activeHistoryId);
+  if (!run) return;
+  const grouped = document.getElementById('groupRuns')?.checked;
+  if (grouped && run.groupId) {
+    showGroupedRuns(run.groupId);
+  } else {
+    showHistoryRun(run.id);
   }
 }
 
