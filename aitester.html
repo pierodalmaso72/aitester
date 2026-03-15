@@ -496,8 +496,8 @@ function renderModels(focusId) {
         <input type="checkbox" ${checked} onchange="toggleModel('${m.id}', this.checked)" id="chk_${m.id}">
         <label class="name" for="chk_${m.id}" style="cursor:pointer">${m.name}</label>
         <div class="price">
-          <span>$</span><input type="number" step="0.01" value="${m.priceIn}" id="pin_${m.id}" onchange="MODELS['${m.id}'].priceIn=+this.value" title="Input $/M">
-          <span>/</span><input type="number" step="0.01" value="${m.priceOut}" id="pout_${m.id}" onchange="MODELS['${m.id}'].priceOut=+this.value" title="Output $/M">
+          <span>$</span><input type="number" step="0.01" value="${m.priceIn.toFixed(2)}" id="pin_${m.id}" onchange="MODELS['${m.id}'].priceIn=+this.value" title="Input $/M">
+          <span>/</span><input type="number" step="0.01" value="${m.priceOut.toFixed(2)}" id="pout_${m.id}" onchange="MODELS['${m.id}'].priceOut=+this.value" title="Output $/M">
           <button class="price-fetch" onclick="fetchPrice('${m.id}')" title="Buscar preço via Gemini">&#x1f504;</button>
         </div>
       </div>`;
@@ -620,8 +620,16 @@ async function fetchPrice(modelId) {
     const m = text.match(/\{[\s\S]*\}/);
     if (m) {
       const parsed = JSON.parse(m[0]);
-      document.getElementById('priceDialogIn').value = parsed.inputPerM || model.priceIn;
-      document.getElementById('priceDialogOut').value = parsed.outputPerM || model.priceOut;
+      let pIn = parseFloat(parsed.inputPerM || parsed.input || parsed.prompt || 0);
+      let pOut = parseFloat(parsed.outputPerM || parsed.output || parsed.completion || 0);
+      // If values look like per-token (very small), convert to per-million
+      if (pIn > 0 && pIn < 0.01) pIn = pIn * 1_000_000;
+      if (pOut > 0 && pOut < 0.01) pOut = pOut * 1_000_000;
+      // Format: 2 decimal places
+      pIn = Math.round(pIn * 100) / 100;
+      pOut = Math.round(pOut * 100) / 100;
+      document.getElementById('priceDialogIn').value = pIn || model.priceIn;
+      document.getElementById('priceDialogOut').value = pOut || model.priceOut;
       document.getElementById('priceDialogSource').textContent = `Via Gemini Flash-Lite — verifica e aceita ou edita`;
     } else {
       document.getElementById('priceDialogSource').textContent = `Gemini não devolveu preço — edita manualmente`;
