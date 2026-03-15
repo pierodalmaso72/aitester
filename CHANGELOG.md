@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), using [Semantic Versioning](https://semver.org/).
 
+## [1.1.1] - 2026-03-15
+
+### Added
+- Filter input per provider to search models by name/id (e.g. "sonnet", "flash", "2.5")
+- Models section is now collapsible
+
+### Changed
+- Run button moved to Prompts section for quicker access
+- API Keys panel starts expanded, auto-collapses when all 3 keys are filled and user clicks outside
+
+### Fixed
+- Version display in header subtitle showing old version
+
 ## [1.1.0] - 2026-03-15
 
 ### Added
