@@ -323,12 +323,36 @@ function applyOpenRouterPrices() {
   for (const [id, model] of Object.entries(MODELS)) {
     const price = matchOpenRouterPrice(id);
     if (price && price.priceIn > 0) {
-      model.priceIn = Math.round(price.priceIn * 100) / 100;
-      model.priceOut = Math.round(price.priceOut * 100) / 100;
+      const pIn = Math.round(price.priceIn * 100) / 100;
+      const pOut = Math.round(price.priceOut * 100) / 100;
+      model.priceIn = pIn;
+      model.priceOut = pOut;
+      model.originalPriceIn = pIn;
+      model.originalPriceOut = pOut;
       updated++;
     }
   }
   if (updated) renderModels();
+}
+
+function isPriceModified(model) {
+  if (model.originalPriceIn == null) return false;
+  return model.priceIn !== model.originalPriceIn || model.priceOut !== model.originalPriceOut;
+}
+
+function onPriceEdit(modelId) {
+  MODELS[modelId].priceIn = +document.getElementById('pin_' + modelId).value;
+  MODELS[modelId].priceOut = +document.getElementById('pout_' + modelId).value;
+  renderModels();
+}
+
+function resetPrice(modelId) {
+  const m = MODELS[modelId];
+  if (m.originalPriceIn != null) {
+    m.priceIn = m.originalPriceIn;
+    m.priceOut = m.originalPriceOut;
+    renderModels();
+  }
 }
 
 // =====================================================================
@@ -432,7 +456,8 @@ async function fetchAnthropicModels(key) {
     if (MODELS[id]) continue;
     const name = id.replace(/^claude-/, '').replace(/-\d{8}$/, '').replace(/-/g, ' ');
     const price = matchOpenRouterPrice(id);
-    MODELS[id] = { provider: 'anthropic', name, priceIn: price?.priceIn || 0, priceOut: price?.priceOut || 0 };
+    const pIn = price?.priceIn || 0, pOut = price?.priceOut || 0;
+    MODELS[id] = { provider: 'anthropic', name, priceIn: pIn, priceOut: pOut, originalPriceIn: pIn, originalPriceOut: pOut };
   }
 }
 
@@ -448,7 +473,8 @@ async function fetchOpenAIModels(key) {
   for (const id of relevant) {
     if (MODELS[id]) continue;
     const price = matchOpenRouterPrice(id);
-    MODELS[id] = { provider: 'openai', name: id, priceIn: price?.priceIn || 0, priceOut: price?.priceOut || 0 };
+    const pIn = price?.priceIn || 0, pOut = price?.priceOut || 0;
+    MODELS[id] = { provider: 'openai', name: id, priceIn: pIn, priceOut: pOut, originalPriceIn: pIn, originalPriceOut: pOut };
   }
 }
 
@@ -464,7 +490,8 @@ async function fetchGeminiModels(key) {
   for (const { id, displayName } of relevant) {
     if (MODELS[id]) continue;
     const price = matchOpenRouterPrice(id);
-    MODELS[id] = { provider: 'gemini', name: displayName || id, priceIn: price?.priceIn || 0, priceOut: price?.priceOut || 0 };
+    const pIn = price?.priceIn || 0, pOut = price?.priceOut || 0;
+    MODELS[id] = { provider: 'gemini', name: displayName || id, priceIn: pIn, priceOut: pOut, originalPriceIn: pIn, originalPriceOut: pOut };
   }
 }
 
@@ -489,6 +516,8 @@ function renderModels(focusId) {
     const filtered = filterVal
       ? models.filter(m => (m.id + ' ' + m.name).toLowerCase().includes(filterVal.toLowerCase()))
       : models;
+    // Selected models float to top
+    filtered.sort((a, b) => (selectedModels.has(b.id) ? 1 : 0) - (selectedModels.has(a.id) ? 1 : 0));
     html += `<div class="model-group"><h3 style="display:flex;align-items:center;gap:8px">${PROVIDER_LABELS[provider]} <input type="text" id="filter_${provider}" placeholder="Filtrar..." value="${esc(filterVal)}" oninput="renderModels(this.id)" style="flex:1;max-width:180px;padding:2px 6px;font-size:0.7rem;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--fg)"></h3>`;
     for (const m of filtered) {
       const checked = selectedModels.has(m.id) ? 'checked' : '';
@@ -496,9 +525,11 @@ function renderModels(focusId) {
         <input type="checkbox" ${checked} onchange="toggleModel('${m.id}', this.checked)" id="chk_${m.id}">
         <label class="name" for="chk_${m.id}" style="cursor:pointer">${m.name}</label>
         <div class="price">
-          <span>$</span><input type="number" step="0.01" value="${m.priceIn.toFixed(2)}" id="pin_${m.id}" onchange="MODELS['${m.id}'].priceIn=+this.value" title="Input $/M">
-          <span>/</span><input type="number" step="0.01" value="${m.priceOut.toFixed(2)}" id="pout_${m.id}" onchange="MODELS['${m.id}'].priceOut=+this.value" title="Output $/M">
-          <button class="price-fetch" onclick="fetchPrice('${m.id}')" title="Buscar preço via Gemini">&#x1f504;</button>
+          <span>$</span><input type="number" step="0.01" value="${m.priceIn.toFixed(2)}" id="pin_${m.id}" onchange="onPriceEdit('${m.id}')" title="Input $/M">
+          <span>/</span><input type="number" step="0.01" value="${m.priceOut.toFixed(2)}" id="pout_${m.id}" onchange="onPriceEdit('${m.id}')" title="Output $/M">
+          ${isPriceModified(m)
+            ? `<button class="price-fetch" onclick="resetPrice('${m.id}')" title="Repor preço original" style="color:var(--red)">✕</button>`
+            : `<button class="price-fetch" onclick="fetchPrice('${m.id}')" title="Buscar preço via Gemini">&#x1f504;</button>`}
         </div>
       </div>`;
     }
@@ -644,11 +675,6 @@ function acceptPrice() {
     MODELS[priceDialogTarget].priceIn = +document.getElementById('priceDialogIn').value;
     MODELS[priceDialogTarget].priceOut = +document.getElementById('priceDialogOut').value;
     renderModels();
-    // Re-check previously selected
-    for (const id of selectedModels) {
-      const el = document.getElementById('chk_' + id);
-      if (el) el.checked = true;
-    }
   }
   closePriceDialog();
 }
