@@ -253,7 +253,7 @@ let priceDialogTarget = null;
 // =====================================================================
 
 const MODELS = {
-  // Anthropic (hardcoded)
+  // Anthropic (fallback — overridden by API fetch when key is provided)
   'claude-haiku-4-5-20251001': { provider: 'anthropic', name: 'Haiku 4.5', priceIn: 1, priceOut: 5 },
   'claude-sonnet-4-20250514': { provider: 'anthropic', name: 'Sonnet 4.6', priceIn: 3, priceOut: 15 },
   'claude-opus-4-20250514': { provider: 'anthropic', name: 'Opus 4.6', priceIn: 5, priceOut: 25 },
@@ -307,9 +307,15 @@ let fetchingModels = false;
 
 async function onKeyChange() {
   updateRunButton();
+  const anthropicKey = document.getElementById('keyAnthropic').value.trim();
   const openaiKey = document.getElementById('keyOpenAI').value.trim();
   const geminiKey = document.getElementById('keyGemini').value.trim();
 
+  if (anthropicKey && !fetchingModels) {
+    fetchingModels = true;
+    try { await fetchAnthropicModels(anthropicKey); } catch(e) { console.warn('Anthropic models fetch failed:', e); }
+    fetchingModels = false;
+  }
   if (openaiKey && !fetchingModels) {
     fetchingModels = true;
     try { await fetchOpenAIModels(openaiKey); } catch(e) { console.warn('OpenAI models fetch failed:', e); }
@@ -321,6 +327,36 @@ async function onKeyChange() {
     fetchingModels = false;
   }
   renderModels();
+}
+
+async function fetchAnthropicModels(key) {
+  const res = await fetch('https://api.anthropic.com/v1/models?limit=100', {
+    headers: {
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    }
+  });
+  if (!res.ok) return;
+  const data = await res.json();
+  const models = (data.data || [])
+    .filter(m => /^claude-/.test(m.id))
+    .map(m => m.id)
+    .sort();
+
+  const defaultPrices = {
+    'claude-opus-4': [15, 75], 'claude-sonnet-4': [3, 15],
+    'claude-haiku-4': [1, 5], 'claude-3-5-sonnet': [3, 15],
+    'claude-3-5-haiku': [0.8, 4], 'claude-3-opus': [15, 75],
+  };
+
+  for (const id of models) {
+    if (MODELS[id]) continue;
+    const base = Object.keys(defaultPrices).find(k => id.startsWith(k));
+    const [pIn, pOut] = base ? defaultPrices[base] : [3, 15];
+    const name = id.replace(/^claude-/, '').replace(/-\d{8}$/, '').replace(/-/g, ' ');
+    MODELS[id] = { provider: 'anthropic', name, priceIn: pIn, priceOut: pOut };
+  }
 }
 
 async function fetchOpenAIModels(key) {

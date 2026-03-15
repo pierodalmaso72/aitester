@@ -18,7 +18,7 @@ Single-page HTML app para testar e comparar modelos AI de 3 providers (Anthropic
 - Headers: `x-api-key`, `anthropic-version: 2023-06-01`, `anthropic-dangerous-direct-browser-access: true`
 - PDF: `{ type: 'document', source: { type: 'base64', media_type, data } }`
 - Imagem: `{ type: 'image', source: { type: 'base64', media_type, data } }`
-- Modelos: hardcoded (Anthropic não tem endpoint de listagem)
+- Listagem modelos: `GET https://api.anthropic.com/v1/models` (com headers de auth)
 - CORS: requer header `anthropic-dangerous-direct-browser-access: true`
 
 ### OpenAI (GPT)
@@ -36,7 +36,7 @@ Single-page HTML app para testar e comparar modelos AI de 3 providers (Anthropic
 ## Funcionalidades actuais
 
 - API keys em memória (não persistem)
-- Modelos: lista dinâmica (OpenAI/Gemini via API) + hardcoded (Anthropic)
+- Modelos: lista dinâmica via API (todos os 3 providers) + fallback hardcoded Anthropic
 - System prompt + user prompt separados
 - Presets de prompts (editáveis)
 - Upload de ficheiros (qualquer formato, drag & drop)
