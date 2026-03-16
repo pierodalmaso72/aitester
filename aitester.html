@@ -481,16 +481,12 @@ async function savePrompt() {
   const system = document.getElementById('systemPrompt').value;
   const user = document.getElementById('userPrompt').value;
   if (!system && !user) { alert(t('emptyPrompts')); return; }
-  const name = prompt(t('promptName'), 'My Prompt');
-  if (!name) return;
-  const data = JSON.stringify({ name, system, user }, null, 2);
-  const filename = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.json`;
+  const data = JSON.stringify({ system, user }, null, 2);
 
-  // Use File System Access API if available (shows native Save As dialog)
   if (window.showSaveFilePicker) {
     try {
       const handle = await showSaveFilePicker({
-        suggestedName: filename,
+        suggestedName: 'prompt.json',
         types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
       });
       const writable = await handle.createWritable();
@@ -498,14 +494,14 @@ async function savePrompt() {
       await writable.close();
       return;
     } catch (e) {
-      if (e.name === 'AbortError') return; // User cancelled
+      if (e.name === 'AbortError') return;
     }
   }
-  // Fallback: auto-download
+  // Fallback for browsers without File System Access API
   const blob = new Blob([data], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = filename;
+  a.download = 'prompt.json';
   a.click();
 }
 
