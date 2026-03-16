@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), using [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] - 2026-03-16
+
+### Added
+- Run button transforms into red Stop button to cancel in-flight requests
+- Selected models float to top of each provider list
+- Undo button (red ✕) for price edits — reverts to OpenRouter original price
+- History items stack vertically with timestamp (HH:MM) and remove button
+- Group toggle moved to Results panel for visual grouping of sequential runs
+
+### Fixed
+- OpenAI reasoning models (gpt-5*, o3, o4) now use `developer` role for system prompt
+- OpenAI image upload uses `image_url` type instead of `file` type
+- GPT-5-nano and other models without vision gracefully skip images with a note
+- Large images (> 4MB) auto-resized before upload to prevent request failures
+- Selected models not floating to top on toggle
+- Model list font reduced, price inputs widened for readability
+
 ## [1.2.1] - 2026-03-15
 
 ### Changed
