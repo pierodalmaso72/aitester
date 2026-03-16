@@ -1449,8 +1449,8 @@ fetchOpenRouterPrices();
 fetchExchangeRate();
 
 // Listen for prompt changes
-document.getElementById('userPrompt').addEventListener('input', updateRunButton);
-document.getElementById('systemPrompt').addEventListener('input', updateRunButton);
+document.getElementById('userPrompt').addEventListener('input', () => { updateRunButton(); document.getElementById('presetSelect').value = 'custom'; });
+document.getElementById('systemPrompt').addEventListener('input', () => { updateRunButton(); document.getElementById('presetSelect').value = 'custom'; });
 
 // Auto-collapse API keys when clicking outside and all 3 are filled
 document.addEventListener('click', (e) => {
