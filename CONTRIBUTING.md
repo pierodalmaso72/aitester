@@ -1,17 +1,15 @@
-# AI Tester
+# Contributing
 
-## What it is
-
-Single-page HTML app to test and compare AI models from 3 providers (Anthropic, OpenAI, Google Gemini). No server — runs entirely in the browser.
+AI Tester is a single HTML file with no build step. To contribute, just edit `aitester.html` and open it in a browser.
 
 ## Stack
 
 - 1 HTML file with inline CSS + JS
 - No dependencies, no build, no framework
 - Direct REST API calls via `fetch()`
-- Light/Dark theme (system default + manual toggle)
+- Fonts: [DM Sans](https://fonts.google.com/specimen/DM+Sans) + [JetBrains Mono](https://fonts.google.com/specimen/JetBrains+Mono)
 
-## Providers & APIs
+## Provider API Reference
 
 ### Anthropic (Claude)
 - Endpoint: `https://api.anthropic.com/v1/messages`
@@ -19,7 +17,6 @@ Single-page HTML app to test and compare AI models from 3 providers (Anthropic, 
 - PDF: `{ type: 'document', source: { type: 'base64', media_type, data } }`
 - Image: `{ type: 'image', source: { type: 'base64', media_type, data } }`
 - Model listing: `GET https://api.anthropic.com/v1/models` (with auth headers)
-- CORS: requires header `anthropic-dangerous-direct-browser-access: true`
 
 ### OpenAI (GPT)
 - Endpoint: `https://api.openai.com/v1/chat/completions`
@@ -35,27 +32,21 @@ Single-page HTML app to test and compare AI models from 3 providers (Anthropic, 
 - File: `{ inlineData: { mimeType, data } }`
 - Model listing: `GET https://generativelanguage.googleapis.com/v1beta/models?key={key}`
 
-## Pricing
+## Pricing Data
 
-- Auto-fetched from OpenRouter public API (no auth): `GET https://openrouter.ai/api/v1/models`
-- USD/EUR exchange rate from `open.er-api.com`
-- Manual override per model (editable inputs + Gemini Flash-Lite fetch)
-- No hardcoded prices — defaults to 0 if OpenRouter has no data
-
-## Versioning
-
-- **SemVer** (MAJOR.MINOR.PATCH)
-- Current version: see `<h1>` in `aitester.html`
-- CHANGELOG.md follows [Keep a Changelog](https://keepachangelog.com/)
-- On bump: update version in `<h1>` of HTML + CHANGELOG.md entry
+- Auto-fetched from [OpenRouter](https://openrouter.ai/api/v1/models) (public API, no auth)
+- Exchange rate from [open.er-api.com](https://open.er-api.com)
+- Never hardcode prices — default to 0 if source has no data
+- Manual override available per model
 
 ## Conventions
 
-- **Language:** Vanilla JavaScript (inline in HTML)
-- **No dependencies** — fully self-contained
-- **UI language:** English
-- **Commits:** English, descriptive messages
-- **Prices:** Never hardcode — use OpenRouter or 0
+- **Single file** — all HTML, CSS, and JS live in `aitester.html`
+- **Vanilla JS** — no frameworks, no transpilation
+- **i18n** — all UI strings go in the `I18N` object (EN + PT)
+- **No browser dialogs** — use toast notifications, not `alert()`/`prompt()`/`confirm()`
+- **Commits** — English, descriptive messages
+- **Versioning** — [SemVer](https://semver.org/). Update version in `<h1>` + `CHANGELOG.md`
 
 ## Roadmap
 
