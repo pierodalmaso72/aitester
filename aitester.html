@@ -260,7 +260,7 @@ select { cursor: pointer; }
     <div class="field">
       <label data-i18n="files">Files (optional)</label>
       <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
-        <span id="dropText" data-i18n="dropText">Drop files here or click to select</span>
+        <span id="dropText">Drop files here or click to select</span>
         <input type="file" id="fileInput" style="display:none" multiple onchange="handleFileSelect(event)">
       </div>
       <div id="fileList" class="file-list"></div>
@@ -719,6 +719,7 @@ function processFile(file) {
   if (mimeType.startsWith('image/') && file.size > 4 * 1024 * 1024) {
     const img = new Image();
     img.onload = () => {
+      URL.revokeObjectURL(img.src);
       const maxDim = 2048;
       let w = img.width, h = img.height;
       if (w > maxDim || h > maxDim) {
@@ -879,7 +880,7 @@ async function callAnthropic(modelId, systemPrompt, userPrompt, files, signal) {
   });
 
   const data = await res.json();
-  if (data.error) throw new Errorr(data.error.message);
+  if (data.error) throw new Error(data.error.message);
 
   const text = data.content?.find(b => b.type === 'text')?.text || '';
   return { text, tokensIn: data.usage?.input_tokens || 0, tokensOut: data.usage?.output_tokens || 0 };
@@ -923,7 +924,7 @@ async function callOpenAI(modelId, systemPrompt, userPrompt, files, signal) {
   });
 
   const data = await res.json();
-  if (data.error) throw new Errorr(data.error.message);
+  if (data.error) throw new Error(data.error.message);
 
   const text = data.choices?.[0]?.message?.content || '';
   return { text, tokensIn: data.usage?.prompt_tokens || 0, tokensOut: data.usage?.completion_tokens || 0 };
@@ -949,7 +950,7 @@ async function callGemini(modelId, systemPrompt, userPrompt, files, signal) {
   });
 
   const data = await res.json();
-  if (data.error) throw new Errorr(data.error.message);
+  if (data.error) throw new Error(data.error.message);
 
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
   const usage = data.usageMetadata || {};
@@ -961,7 +962,7 @@ async function callModel(modelId, systemPrompt, userPrompt, files, signal) {
   if (provider === 'anthropic') return callAnthropic(modelId, systemPrompt, userPrompt, files, signal);
   if (provider === 'openai') return callOpenAI(modelId, systemPrompt, userPrompt, files, signal);
   if (provider === 'gemini') return callGemini(modelId, systemPrompt, userPrompt, files, signal);
-  throw new Errorr(`Unknown provider: ${provider}`);
+  throw new Error(`Unknown provider: ${provider}`);
 }
 
 // =====================================================================
@@ -1071,7 +1072,7 @@ async function runTests() {
       renderHistory();
     }
   } catch (e) {
-    if (e.name !== 'AbortErrorr') console.error(e);
+    if (e.name !== 'AbortError') console.error(e);
   }
 
   isRunning = false;
@@ -1339,7 +1340,7 @@ const I18N = {
     promptName: 'Prompt name:',
     invalidJson: 'Invalid JSON file',
     addGeminiKey: 'Add your Gemini key first',
-    queryingGemini: t('queryingGemini'),
+    queryingGemini: 'Querying Gemini Flash-Lite...',
     geminiOk: 'Via Gemini Flash-Lite — verify and accept or edit',
     geminiNoPrice: 'Gemini returned no price — edit manually',
     filterPlaceholder: 'Filter...',
@@ -1388,9 +1389,15 @@ function applyLang() {
     const key = el.getAttribute('data-i18n-html');
     if (I18N[currentLang][key]) el.innerHTML = I18N[currentLang][key];
   });
-  // Update placeholders
+  // Update placeholders and dynamic text
   const sp = document.getElementById('systemPrompt');
   if (sp) sp.placeholder = t('systemPlaceholder');
+  // Update drop zone text if no files uploaded
+  if (!uploadedFiles.length) {
+    document.getElementById('dropText').textContent = t('dropDefault');
+  } else {
+    document.getElementById('dropText').textContent = t('addMore', uploadedFiles.length);
+  }
   document.getElementById('langBtn').textContent = currentLang === 'en' ? 'PT' : 'EN';
   document.documentElement.lang = currentLang;
 }
