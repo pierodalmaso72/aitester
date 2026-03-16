@@ -3,6 +3,30 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), using [Semantic Versioning](https://semver.org/).
 
+## [2.0.0] - 2026-03-16
+
+### Added
+- Light/dark theme with system preference detection (fallback: dark)
+- PT/EN language switcher with auto-detection from browser locale
+- Save/Load prompts as JSON files (native Save As dialog)
+- USD/EUR currency switcher in Models panel
+- Toast notifications (replaces all browser alert dialogs)
+- Visual refresh: DM Sans + JetBrains Mono fonts, refined colors, shadows, transitions
+- README.md, LICENSE (MIT), .gitignore for public release
+
+### Changed
+- All UI text translated to English (default) with Portuguese available
+- Presets renamed: Classify (basic), Key Fields (medium), Full Analysis (high)
+- Preset dropdown resets to Custom when user edits prompt text
+- Footer with pricing source and beta disclaimer
+
+### Fixed
+- Critical: `Error` typo (5 occurrences) that silently crashed API error handling
+- Critical: circular `t()` reference in i18n that prevented page from loading
+- Gemini price fetch improved with examples and lower per-token threshold
+- Save prompt now goes straight to native file dialog (no browser prompt)
+- API keys note updated to reflect all 3 providers load models
+
 ## [1.3.0] - 2026-03-16
 
 ### Added
