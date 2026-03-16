@@ -765,19 +765,25 @@ async function callOpenAI(modelId, systemPrompt, userPrompt, files, signal) {
   const messages = [];
 
   const isReasoning = /^(gpt-5|o[34])/.test(modelId);
+  // Models that don't support vision
+  const noVision = /^(gpt-5-nano|o3-mini|o4-mini)/.test(modelId);
 
   // Reasoning models use 'developer' role instead of 'system'
   if (systemPrompt) messages.push({ role: isReasoning ? 'developer' : 'system', content: systemPrompt });
 
   const userContent = [];
+  let skippedImages = 0;
   for (const file of files) {
     if (file.mimeType.startsWith('image/')) {
+      if (noVision) { skippedImages++; continue; }
       userContent.push({ type: 'image_url', image_url: { url: `data:${file.mimeType};base64,${file.base64}` } });
     } else {
       userContent.push({ type: 'file', file: { filename: file.name, file_data: `data:${file.mimeType};base64,${file.base64}` } });
     }
   }
-  userContent.push({ type: 'text', text: userPrompt });
+  let promptText = userPrompt;
+  if (skippedImages) promptText += `\n\n[Nota: ${skippedImages} imagem(ns) omitida(s) — modelo não suporta visão]`;
+  userContent.push({ type: 'text', text: promptText });
   messages.push({ role: 'user', content: userContent });
 
   const body = { model: modelId, messages };
