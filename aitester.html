@@ -449,17 +449,35 @@ function loadPreset() {
   document.getElementById('userPrompt').value = p.user;
 }
 
-function savePrompt() {
+async function savePrompt() {
   const system = document.getElementById('systemPrompt').value;
   const user = document.getElementById('userPrompt').value;
   if (!system && !user) { alert(t('emptyPrompts')); return; }
   const name = prompt(t('promptName'), 'My Prompt');
   if (!name) return;
   const data = JSON.stringify({ name, system, user }, null, 2);
+  const filename = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.json`;
+
+  // Use File System Access API if available (shows native Save As dialog)
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await showSaveFilePicker({
+        suggestedName: filename,
+        types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(data);
+      await writable.close();
+      return;
+    } catch (e) {
+      if (e.name === 'AbortError') return; // User cancelled
+    }
+  }
+  // Fallback: auto-download
   const blob = new Blob([data], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.json`;
+  a.download = filename;
   a.click();
 }
 
