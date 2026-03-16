@@ -183,6 +183,10 @@ select { cursor: pointer; }
 .lang-toggle { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; }
 .theme-toggle:hover, .lang-toggle:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-glow); }
 
+/* Toast */
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--fg); color: var(--bg); padding: 10px 20px; border-radius: var(--radius); font-size: 0.8rem; font-weight: 500; z-index: 200; opacity: 0; transition: transform 0.3s, opacity 0.3s; pointer-events: none; box-shadow: var(--shadow-md); }
+.toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
 /* Footer */
 .footer { text-align: center; padding: 20px 0; font-size: 0.63rem; color: var(--fg2); line-height: 1.7; margin-top: 16px; border-top: 1px solid var(--border); }
 .footer a { color: var(--accent); text-decoration: none; font-weight: 500; }
@@ -343,7 +347,21 @@ select { cursor: pointer; }
   </div>
 </div>
 
+<div class="toast" id="toast"></div>
+
 <script>
+// =====================================================================
+// Toast
+// =====================================================================
+
+function showToast(msg, duration = 2500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._timeout);
+  el._timeout = setTimeout(() => el.classList.remove('show'), duration);
+}
+
 // =====================================================================
 // State
 // =====================================================================
@@ -491,7 +509,7 @@ function loadPreset() {
 async function savePrompt() {
   const system = document.getElementById('systemPrompt').value;
   const user = document.getElementById('userPrompt').value;
-  if (!system && !user) { alert(t('emptyPrompts')); return; }
+  if (!system && !user) { showToast(t('emptyPrompts')); return; }
   const data = JSON.stringify({ system, user }, null, 2);
 
   if (window.showSaveFilePicker) {
@@ -528,7 +546,7 @@ function loadPromptFile(e) {
       document.getElementById('presetSelect').value = 'custom';
       updateRunButton();
     } catch (err) {
-      alert(t('invalidJson'));
+      showToast(t('invalidJson'));
     }
   };
   reader.readAsText(file);
@@ -794,7 +812,7 @@ function getFileMode() {
 
 async function fetchPrice(modelId) {
   const geminiKey = document.getElementById('keyGemini').value.trim();
-  if (!geminiKey) { alert(t('addGeminiKey')); return; }
+  if (!geminiKey) { showToast(t('addGeminiKey')); return; }
 
   priceDialogTarget = modelId;
   const model = MODELS[modelId];
