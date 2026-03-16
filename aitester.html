@@ -281,6 +281,9 @@ select { cursor: pointer; }
       <span>−</span>
     </div>
     <div class="panel-body">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+        <button class="btn btn-secondary btn-sm" id="currencyBtn" onclick="toggleCurrency()" style="font-family:'JetBrains Mono',monospace;font-size:0.65rem">$/1M</button>
+      </div>
       <div id="modelsContainer" class="models-grid"></div>
     </div>
   </div>
@@ -324,11 +327,11 @@ select { cursor: pointer; }
     <p id="priceDialogModel" style="color:var(--fg2);font-size:0.85rem;margin-bottom:12px"></p>
     <div class="row">
       <div class="field">
-        <label>Input $/M</label>
+        <label>Input /1M (USD)</label>
         <input type="number" id="priceDialogIn" step="0.01">
       </div>
       <div class="field">
-        <label>Output $/M</label>
+        <label>Output /1M (USD)</label>
         <input type="number" id="priceDialogOut" step="0.01">
       </div>
     </div>
@@ -350,6 +353,7 @@ let history = []; // [{ id, timestamp, prompt, systemPrompt, file, files, groupI
 let activeHistoryId = null;
 let selectedModels = new Set();
 let priceDialogTarget = null;
+let priceCurrency = 'usd'; // 'usd' or 'eur'
 let openRouterPrices = {}; // { 'model-slug': { priceIn, priceOut } }
 let usdToEur = 0.92; // fallback, updated dynamically
 
@@ -423,8 +427,15 @@ function isPriceModified(model) {
 }
 
 function onPriceEdit(modelId) {
-  MODELS[modelId].priceIn = +document.getElementById('pin_' + modelId).value;
-  MODELS[modelId].priceOut = +document.getElementById('pout_' + modelId).value;
+  let pIn = +document.getElementById('pin_' + modelId).value;
+  let pOut = +document.getElementById('pout_' + modelId).value;
+  // Convert back to USD if editing in EUR
+  if (priceCurrency === 'eur' && usdToEur > 0) {
+    pIn = pIn / usdToEur;
+    pOut = pOut / usdToEur;
+  }
+  MODELS[modelId].priceIn = Math.round(pIn * 100) / 100;
+  MODELS[modelId].priceOut = Math.round(pOut * 100) / 100;
   renderModels();
 }
 
@@ -654,8 +665,8 @@ function renderModels(focusId) {
         <input type="checkbox" ${checked} onchange="toggleModel('${m.id}', this.checked)" id="chk_${m.id}">
         <label class="name" for="chk_${m.id}" style="cursor:pointer">${m.name}</label>
         <div class="price">
-          <span>$</span><input type="number" step="0.01" value="${m.priceIn.toFixed(2)}" id="pin_${m.id}" onchange="onPriceEdit('${m.id}')" title="Input $/M">
-          <span>/</span><input type="number" step="0.01" value="${m.priceOut.toFixed(2)}" id="pout_${m.id}" onchange="onPriceEdit('${m.id}')" title="Output $/M">
+          <span>${priceCurrency === 'usd' ? '$' : '€'}</span><input type="number" step="0.01" value="${displayPrice(m.priceIn)}" id="pin_${m.id}" onchange="onPriceEdit('${m.id}')" title="Input /1M">
+          <span>/</span><input type="number" step="0.01" value="${displayPrice(m.priceOut)}" id="pout_${m.id}" onchange="onPriceEdit('${m.id}')" title="Output /1M">
           ${isPriceModified(m)
             ? `<button class="price-fetch" onclick="resetPrice('${m.id}')" title="Reset to original price" style="color:var(--red)">✕</button>`
             : `<button class="price-fetch" onclick="fetchPrice('${m.id}')" title="Fetch price via Gemini">&#x1f504;</button>`}
@@ -798,7 +809,7 @@ async function fetchPrice(modelId) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: `What is the current API pricing for the AI model "${modelId}"? Reply ONLY with JSON: {"inputPerM": number, "outputPerM": number} where values are USD per million tokens.` }] }],
+        contents: [{ parts: [{ text: `What is the current API pricing for the AI model "${modelId}"? Reply ONLY with JSON: {"inputPerM": number, "outputPerM": number} where values are USD per 1 million tokens. Example: Claude Sonnet would be {"inputPerM": 3, "outputPerM": 15}. GPT-4.1-mini would be {"inputPerM": 0.4, "outputPerM": 1.6}.` }] }],
       }),
     });
     const data = await res.json();
@@ -808,9 +819,9 @@ async function fetchPrice(modelId) {
       const parsed = JSON.parse(m[0]);
       let pIn = parseFloat(parsed.inputPerM || parsed.input || parsed.prompt || 0);
       let pOut = parseFloat(parsed.outputPerM || parsed.output || parsed.completion || 0);
-      // If values look like per-token (very small), convert to per-million
-      if (pIn > 0 && pIn < 0.01) pIn = pIn * 1_000_000;
-      if (pOut > 0 && pOut < 0.01) pOut = pOut * 1_000_000;
+      // If values look like per-token (< 0.001), convert to per-million
+      if (pIn > 0 && pIn < 0.001) pIn = pIn * 1_000_000;
+      if (pOut > 0 && pOut < 0.001) pOut = pOut * 1_000_000;
       // Format: 2 decimal places
       pIn = Math.round(pIn * 100) / 100;
       pOut = Math.round(pOut * 100) / 100;
@@ -832,6 +843,17 @@ function acceptPrice() {
     renderModels();
   }
   closePriceDialog();
+}
+
+function toggleCurrency() {
+  priceCurrency = priceCurrency === 'usd' ? 'eur' : 'usd';
+  document.getElementById('currencyBtn').textContent = priceCurrency === 'usd' ? '$/1M' : '€/1M';
+  renderModels();
+}
+
+function displayPrice(usdPrice) {
+  if (priceCurrency === 'eur') return (usdPrice * usdToEur).toFixed(2);
+  return usdPrice.toFixed(2);
 }
 
 function closePriceDialog() {
