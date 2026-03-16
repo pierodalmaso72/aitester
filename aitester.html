@@ -150,8 +150,10 @@ select { cursor: pointer; }
 .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
 
 /* Theme toggle */
-.theme-toggle { background: none; border: 1px solid var(--border); border-radius: var(--radius); color: var(--fg2); cursor: pointer; font-size: 1rem; padding: 4px 8px; }
-.theme-toggle:hover { color: var(--accent); border-color: var(--accent); }
+.theme-toggle, .lang-toggle { background: none; border: 1px solid var(--border); border-radius: var(--radius); color: var(--fg2); cursor: pointer; padding: 4px 8px; }
+.theme-toggle { font-size: 1rem; }
+.lang-toggle { font-size: 0.7rem; font-weight: 600; }
+.theme-toggle:hover, .lang-toggle:hover { color: var(--accent); border-color: var(--accent); }
 
 /* Footer */
 .footer { text-align: center; padding: 16px 0; font-size: 0.65rem; color: var(--fg2); line-height: 1.6; margin-top: 12px; border-top: 1px solid var(--border); }
@@ -171,7 +173,8 @@ select { cursor: pointer; }
   <div class="header">
     <h1>AI Tester <span style="font-size:0.5em;color:var(--fg2)">v1.3.0</span></h1>
     <div style="display:flex;align-items:center;gap:12px">
-      <span style="color:var(--fg2);font-size:0.75rem">Browser-only, no server needed</span>
+      <span style="color:var(--fg2);font-size:0.75rem" data-i18n="subtitle">Browser-only, no server needed</span>
+      <button class="lang-toggle" onclick="toggleLang()" id="langBtn" title="Toggle language">PT</button>
       <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn" title="Toggle theme">🌙</button>
     </div>
   </div>
@@ -179,7 +182,7 @@ select { cursor: pointer; }
   <!-- API Keys -->
   <div class="panel" id="keysPanel">
     <div class="panel-header" onclick="togglePanel('keysPanel')">
-      <h2>API Keys</h2>
+      <h2 data-i18n="apiKeys">API Keys</h2>
       <span id="keysToggle">−</span>
     </div>
     <div class="panel-body">
@@ -197,16 +200,16 @@ select { cursor: pointer; }
           <input type="password" id="keyGemini" placeholder="AIza..." oninput="onKeyChange()">
         </div>
       </div>
-      <div style="font-size:0.7rem;color:var(--fg2);margin-top:4px">Keys are kept in memory only — never saved. Adding an OpenAI/Gemini key auto-loads available models.</div>
+      <div style="font-size:0.7rem;color:var(--fg2);margin-top:4px" data-i18n="keysNote">Keys are kept in memory only — never saved. Adding an OpenAI/Gemini key auto-loads available models.</div>
     </div>
   </div>
 
   <!-- Prompts -->
   <div class="panel">
-    <h2>Prompts</h2>
+    <h2 data-i18n="prompts">Prompts</h2>
     <div class="field" style="display:flex;gap:8px;align-items:flex-end">
       <div style="flex:1">
-        <label>Preset</label>
+        <label data-i18n="preset">Preset</label>
         <select id="presetSelect" onchange="loadPreset()">
           <option value="custom">Custom</option>
           <option value="classify">Classify (basic)</option>
@@ -219,23 +222,23 @@ select { cursor: pointer; }
       <input type="file" id="promptFileInput" accept=".json" style="display:none" onchange="loadPromptFile(event)">
     </div>
     <div class="field">
-      <label>System Prompt</label>
+      <label data-i18n="systemPrompt">System Prompt</label>
       <textarea id="systemPrompt" rows="3" placeholder="System prompt (optional)"></textarea>
     </div>
     <div class="field">
-      <label>User Prompt</label>
+      <label data-i18n="userPrompt">User Prompt</label>
       <textarea id="userPrompt" rows="5" placeholder="User prompt..."></textarea>
     </div>
     <div class="field">
-      <label>Files (optional)</label>
+      <label data-i18n="files">Files (optional)</label>
       <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
-        <span id="dropText">Drop files here or click to select</span>
+        <span id="dropText" data-i18n="dropText">Drop files here or click to select</span>
         <input type="file" id="fileInput" style="display:none" multiple onchange="handleFileSelect(event)">
       </div>
       <div id="fileList" class="file-list"></div>
       <div id="fileMode" class="file-mode" style="display:none">
-        <label><input type="radio" name="fileMode" value="sequential" checked> 1 file per request (sequential)</label>
-        <label><input type="radio" name="fileMode" value="batch"> All in one request</label>
+        <label><input type="radio" name="fileMode" value="sequential" checked> <span data-i18n="fileSeq">1 file per request (sequential)</span></label>
+        <label><input type="radio" name="fileMode" value="batch"> <span data-i18n="fileBatch">All in one request</span></label>
       </div>
     </div>
     <div class="actions">
@@ -246,7 +249,7 @@ select { cursor: pointer; }
   <!-- Models -->
   <div class="panel" id="modelsPanel">
     <div class="panel-header" onclick="togglePanel('modelsPanel')">
-      <h2>Models <span style="font-size:0.7rem;color:var(--fg2)">(select up to 4)</span></h2>
+      <h2><span data-i18n="models">Models</span> <span style="font-size:0.7rem;color:var(--fg2)" data-i18n="selectUpTo4">(select up to 4)</span></h2>
       <span>−</span>
     </div>
     <div class="panel-body">
@@ -258,8 +261,8 @@ select { cursor: pointer; }
   <div id="resultsPanel" style="display:none">
     <div class="panel">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <h2>Results</h2>
-        <label style="font-size:0.7rem;color:var(--fg2);display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="groupRuns" onchange="onGroupToggle()" style="accent-color:var(--accent)"> Group</label>
+        <h2 data-i18n="results">Results</h2>
+        <label style="font-size:0.7rem;color:var(--fg2);display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="groupRuns" onchange="onGroupToggle()" style="accent-color:var(--accent)"> <span data-i18n="group">Group</span></label>
       </div>
       <div id="resultsGrid" class="results-grid"></div>
     </div>
@@ -269,7 +272,7 @@ select { cursor: pointer; }
   <div id="historyPanel" style="display:none">
     <div class="panel">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <h2>History</h2>
+        <h2 data-i18n="history">History</h2>
         <div style="display:flex;gap:8px;align-items:center">
           <button class="btn btn-secondary btn-sm" onclick="exportHistory()">Export .md</button>
         </div>
@@ -280,8 +283,8 @@ select { cursor: pointer; }
 
   <!-- Footer -->
   <div class="footer">
-    Model pricing from <a href="https://openrouter.ai" target="_blank">OpenRouter</a> (public API, no auth required) | Exchange rates from <a href="https://open.er-api.com" target="_blank">open.er-api.com</a><br>
-    <strong>Beta</strong> — This tool is provided as-is, with no warranty. Pricing data may be inaccurate or outdated. Always verify costs with your provider's official pricing page. The authors assume no responsibility for any charges incurred.
+    <span data-i18n-html="footerPricing">Model pricing from <a href="https://openrouter.ai" target="_blank">OpenRouter</a> (public API, no auth required) | Exchange rates from <a href="https://open.er-api.com" target="_blank">open.er-api.com</a></span><br>
+    <span data-i18n-html="footerDisclaimer"><strong>Beta</strong> — This tool is provided as-is, with no warranty. Pricing data may be inaccurate or outdated. Always verify costs with your provider's official pricing page. The authors assume no responsibility for any charges incurred.</span>
   </div>
 
 </div>
@@ -289,7 +292,7 @@ select { cursor: pointer; }
 <!-- Price Dialog -->
 <div class="dialog-overlay" id="priceDialog" style="display:none">
   <div class="dialog">
-    <h3>Model Pricing</h3>
+    <h3 data-i18n="modelPricing">Model Pricing</h3>
     <p id="priceDialogModel" style="color:var(--fg2);font-size:0.85rem;margin-bottom:12px"></p>
     <div class="row">
       <div class="field">
@@ -303,8 +306,8 @@ select { cursor: pointer; }
     </div>
     <p id="priceDialogSource" style="font-size:0.7rem;color:var(--fg2);margin-top:8px"></p>
     <div class="actions">
-      <button class="btn btn-secondary" onclick="closePriceDialog()">Cancel</button>
-      <button class="btn btn-primary" onclick="acceptPrice()">Accept</button>
+      <button class="btn btn-secondary" onclick="closePriceDialog()" data-i18n="cancel">Cancel</button>
+      <button class="btn btn-primary" onclick="acceptPrice()" data-i18n="accept">Accept</button>
     </div>
   </div>
 </div>
@@ -449,8 +452,8 @@ function loadPreset() {
 function savePrompt() {
   const system = document.getElementById('systemPrompt').value;
   const user = document.getElementById('userPrompt').value;
-  if (!system && !user) { alert('Nothing to save — prompts are empty'); return; }
-  const name = prompt('Prompt name:', 'My Prompt');
+  if (!system && !user) { alert(t('emptyPrompts')); return; }
+  const name = prompt(t('promptName'), 'My Prompt');
   if (!name) return;
   const data = JSON.stringify({ name, system, user }, null, 2);
   const blob = new Blob([data], { type: 'application/json' });
@@ -472,7 +475,7 @@ function loadPromptFile(e) {
       document.getElementById('presetSelect').value = 'custom';
       updateRunButton();
     } catch (err) {
-      alert('Invalid JSON file');
+      alert(t('invalidJson'));
     }
   };
   reader.readAsText(file);
@@ -602,7 +605,7 @@ function renderModels(focusId) {
       : models;
     // Selected models float to top
     filtered.sort((a, b) => (selectedModels.has(b.id) ? 1 : 0) - (selectedModels.has(a.id) ? 1 : 0));
-    html += `<div class="model-group"><h3 style="display:flex;align-items:center;gap:8px">${PROVIDER_LABELS[provider]} <input type="text" id="filter_${provider}" placeholder="Filter..." value="${esc(filterVal)}" oninput="renderModels(this.id)" style="flex:1;max-width:180px;padding:2px 6px;font-size:0.7rem;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--fg)"></h3>`;
+    html += `<div class="model-group"><h3 style="display:flex;align-items:center;gap:8px">${PROVIDER_LABELS[provider]} <input type="text" id="filter_${provider}" placeholder="${t('filterPlaceholder')}" value="${esc(filterVal)}" oninput="renderModels(this.id)" style="flex:1;max-width:180px;padding:2px 6px;font-size:0.7rem;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--fg)"></h3>`;
     for (const m of filtered) {
       const checked = selectedModels.has(m.id) ? 'checked' : '';
       html += `<div class="model-item">
@@ -711,10 +714,10 @@ function renderFileList() {
   if (!uploadedFiles.length) {
     list.innerHTML = '';
     modeDiv.style.display = 'none';
-    document.getElementById('dropText').textContent = 'Drop files here or click to select';
+    document.getElementById('dropText').textContent = t('dropDefault');
     return;
   }
-  document.getElementById('dropText').textContent = `+ Add more files (${uploadedFiles.length} selected)`;
+  document.getElementById('dropText').textContent = t('addMore', uploadedFiles.length);
   modeDiv.style.display = uploadedFiles.length > 1 ? 'flex' : 'none';
   list.innerHTML = uploadedFiles.map((f, i) =>
     `<div class="file-item">
@@ -737,14 +740,14 @@ function getFileMode() {
 
 async function fetchPrice(modelId) {
   const geminiKey = document.getElementById('keyGemini').value.trim();
-  if (!geminiKey) { alert('Add your Gemini key first'); return; }
+  if (!geminiKey) { alert(t('addGeminiKey')); return; }
 
   priceDialogTarget = modelId;
   const model = MODELS[modelId];
   document.getElementById('priceDialogModel').textContent = `${model.name} (${modelId})`;
   document.getElementById('priceDialogIn').value = model.priceIn;
   document.getElementById('priceDialogOut').value = model.priceOut;
-  document.getElementById('priceDialogSource').textContent = 'Querying Gemini Flash-Lite...';
+  document.getElementById('priceDialogSource').textContent = t('queryingGemini');
   document.getElementById('priceDialog').style.display = 'flex';
 
   try {
@@ -770,9 +773,9 @@ async function fetchPrice(modelId) {
       pOut = Math.round(pOut * 100) / 100;
       document.getElementById('priceDialogIn').value = pIn || model.priceIn;
       document.getElementById('priceDialogOut').value = pOut || model.priceOut;
-      document.getElementById('priceDialogSource').textContent = `Via Gemini Flash-Lite — verify and accept or edit`;
+      document.getElementById('priceDialogSource').textContent = t('geminiOk');
     } else {
-      document.getElementById('priceDialogSource').textContent = `Gemini returned no price — edit manually`;
+      document.getElementById('priceDialogSource').textContent = t('geminiNoPrice');
     }
   } catch (e) {
     document.getElementById('priceDialogSource').textContent = `Error: ${e.message}`;
@@ -858,7 +861,7 @@ async function callOpenAI(modelId, systemPrompt, userPrompt, files, signal) {
     }
   }
   let promptText = userPrompt;
-  if (skippedImages) promptText += `\n\n[Note: ${skippedImages} image(s) skipped — model does not support vision]`;
+  if (skippedImages) promptText += `\n\n${t('skippedImages', skippedImages)}`;
   userContent.push({ type: 'text', text: promptText });
   messages.push({ role: 'user', content: userContent });
 
@@ -953,7 +956,7 @@ async function runSingleBatch(systemPrompt, userPrompt, files, models, groupId, 
         <span class="model-name">${MODELS[id].name}</span>
         <div class="result-meta"><span class="spinner"></span></div>
       </div>
-      <div class="result-body"><pre class="loading">Processing...</pre></div>
+      <div class="result-body"><pre class="loading">${t('processing')}</pre></div>
     </div>
   `).join('');
 
@@ -972,7 +975,7 @@ async function runSingleBatch(systemPrompt, userPrompt, files, models, groupId, 
       renderResult(modelId, run.results[modelId]);
     } catch (e) {
       const elapsed = ((performance.now() - start) / 1000).toFixed(1);
-      const msg = e.name === 'AbortErrorr' ? 'Cancelled' : e.message;
+      const msg = e.name === 'AbortError' ? t('cancelled') : e.message;
       run.results[modelId] = { text: '', tokensIn: 0, tokensOut: 0, costEUR: 0, elapsed, error: msg };
       renderResult(modelId, run.results[modelId]);
     }
@@ -1012,7 +1015,7 @@ async function runTests() {
     if (uploadedFiles.length > 1 && mode === 'sequential') {
       for (let i = 0; i < uploadedFiles.length; i++) {
         if (runAbortController?.signal.aborted) break;
-        const lastId = await runSingleBatch(systemPrompt, userPrompt, [uploadedFiles[i]], models, groupId, `File ${i + 1}/${uploadedFiles.length}: ${uploadedFiles[i].name}`);
+        const lastId = await runSingleBatch(systemPrompt, userPrompt, [uploadedFiles[i]], models, groupId, t('fileLabel', i + 1, uploadedFiles.length, uploadedFiles[i].name));
         activeHistoryId = lastId;
         renderHistory();
       }
@@ -1037,7 +1040,7 @@ function renderResult(modelId, result) {
   if (!card) return;
 
   const meta = result.error
-    ? `<span style="color:var(--red)">Error</span> <span>${result.elapsed}s</span>`
+    ? `<span style="color:var(--red)">${t('error')}</span> <span>${result.elapsed}s</span>`
     : `<span>${result.tokensIn}+${result.tokensOut} tok</span><span>${result.elapsed}s</span><span class="cost">EUR${result.costEUR.toFixed(4)}</span>`;
 
   const body = result.error
@@ -1169,7 +1172,7 @@ function showHistoryRun(id) {
     if (!result) continue;
     const m = run.models.find(x => x.id === modelId);
     const meta = result.error
-      ? `<span style="color:var(--red)">Error</span>`
+      ? `<span style="color:var(--red)">${t('error')}</span>`
       : `<span>${result.tokensIn}+${result.tokensOut} tok</span><span>${result.elapsed}s</span><span class="cost">EUR${result.costEUR.toFixed(4)}</span>`;
     const body = result.error
       ? `<pre class="error">${escapeHtml(result.error)}</pre>`
@@ -1204,7 +1207,7 @@ function showGroupedRuns(groupId) {
       if (!result) continue;
       const m = run.models.find(x => x.id === modelId);
       const meta = result.error
-        ? `<span style="color:var(--red)">Error</span>`
+        ? `<span style="color:var(--red)">${t('error')}</span>`
         : `<span>${result.tokensIn}+${result.tokensOut} tok</span><span>${result.elapsed}s</span><span class="cost">EUR${result.costEUR.toFixed(4)}</span>`;
       const body = result.error
         ? `<pre class="error">${escapeHtml(result.error)}</pre>`
@@ -1260,6 +1263,96 @@ function exportHistory() {
   a.href = URL.createObjectURL(blob);
   a.download = `aitester-export-${new Date().toISOString().slice(0,10)}.md`;
   a.click();
+}
+
+// =====================================================================
+// i18n
+// =====================================================================
+
+let currentLang = 'en';
+
+const I18N = {
+  en: {
+    subtitle: 'Browser-only, no server needed',
+    apiKeys: 'API Keys', keysNote: 'Keys are kept in memory only — never saved. Adding an OpenAI/Gemini key auto-loads available models.',
+    prompts: 'Prompts', preset: 'Preset', systemPrompt: 'System Prompt', userPrompt: 'User Prompt',
+    files: 'Files (optional)', dropText: 'Drop files here or click to select',
+    fileSeq: '1 file per request (sequential)', fileBatch: 'All in one request',
+    models: 'Models', selectUpTo4: '(select up to 4)',
+    results: 'Results', group: 'Group', history: 'History',
+    modelPricing: 'Model Pricing', cancel: 'Cancel', accept: 'Accept',
+    footerPricing: 'Model pricing from <a href="https://openrouter.ai" target="_blank">OpenRouter</a> (public API, no auth required) | Exchange rates from <a href="https://open.er-api.com" target="_blank">open.er-api.com</a>',
+    footerDisclaimer: '<strong>Beta</strong> — This tool is provided as-is, with no warranty. Pricing data may be inaccurate or outdated. Always verify costs with your provider\'s official pricing page. The authors assume no responsibility for any charges incurred.',
+    // Dynamic strings
+    processing: 'Processing...', cancelled: 'Cancelled', error: 'Error',
+    addMore: (n) => `+ Add more files (${n} selected)`,
+    dropDefault: 'Drop files here or click to select',
+    fileLabel: (i, t, name) => `File ${i}/${t}: ${name}`,
+    skippedImages: (n) => `[Note: ${n} image(s) skipped — model does not support vision]`,
+    emptyPrompts: 'Nothing to save — prompts are empty',
+    promptName: 'Prompt name:',
+    invalidJson: 'Invalid JSON file',
+    addGeminiKey: 'Add your Gemini key first',
+    queryingGemini: t('queryingGemini'),
+    geminiOk: 'Via Gemini Flash-Lite — verify and accept or edit',
+    geminiNoPrice: 'Gemini returned no price — edit manually',
+    filterPlaceholder: 'Filter...',
+    systemPlaceholder: 'System prompt (optional)',
+  },
+  pt: {
+    subtitle: 'Corre no browser, sem servidor',
+    apiKeys: 'Chaves API', keysNote: 'As chaves ficam apenas em memória — nunca são guardadas. Ao adicionar chave OpenAI/Gemini, os modelos são carregados automaticamente.',
+    prompts: 'Prompts', preset: 'Preset', systemPrompt: 'System Prompt', userPrompt: 'User Prompt',
+    files: 'Ficheiros (opcional)', dropText: 'Arrasta ficheiros aqui ou clica para seleccionar',
+    fileSeq: '1 ficheiro por pedido (sequencial)', fileBatch: 'Todos num pedido',
+    models: 'Modelos', selectUpTo4: '(selecciona até 4)',
+    results: 'Resultados', group: 'Agrupar', history: 'Histórico',
+    modelPricing: 'Preço do modelo', cancel: 'Cancelar', accept: 'Aceitar',
+    footerPricing: 'Preços dos modelos via <a href="https://openrouter.ai" target="_blank">OpenRouter</a> (API pública, sem autenticação) | Taxa de câmbio via <a href="https://open.er-api.com" target="_blank">open.er-api.com</a>',
+    footerDisclaimer: '<strong>Beta</strong> — Esta ferramenta é fornecida tal como está, sem garantia. Os dados de preços podem estar incorrectos ou desactualizados. Verifique sempre os custos na página oficial do seu provider. Os autores não assumem responsabilidade por quaisquer custos incorridos.',
+    processing: 'A processar...', cancelled: 'Cancelado', error: 'Erro',
+    addMore: (n) => `+ Adicionar mais ficheiros (${n} seleccionado${n > 1 ? 's' : ''})`,
+    dropDefault: 'Arrasta ficheiros aqui ou clica para seleccionar',
+    fileLabel: (i, t, name) => `Ficheiro ${i}/${t}: ${name}`,
+    skippedImages: (n) => `[Nota: ${n} imagem(ns) omitida(s) — modelo não suporta visão]`,
+    emptyPrompts: 'Nada para guardar — prompts estão vazios',
+    promptName: 'Nome do prompt:',
+    invalidJson: 'Ficheiro JSON inválido',
+    addGeminiKey: 'Adiciona a chave Gemini primeiro',
+    queryingGemini: 'A consultar Gemini Flash-Lite...',
+    geminiOk: 'Via Gemini Flash-Lite — verifica e aceita ou edita',
+    geminiNoPrice: 'Gemini não devolveu preço — edita manualmente',
+    filterPlaceholder: 'Filtrar...',
+    systemPlaceholder: 'System prompt (opcional)',
+  }
+};
+
+function t(key, ...args) {
+  const val = I18N[currentLang][key];
+  if (typeof val === 'function') return val(...args);
+  return val || key;
+}
+
+function applyLang() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (I18N[currentLang][key]) el.textContent = I18N[currentLang][key];
+  });
+  document.querySelectorAll('[data-i18n-html]').forEach(el => {
+    const key = el.getAttribute('data-i18n-html');
+    if (I18N[currentLang][key]) el.innerHTML = I18N[currentLang][key];
+  });
+  // Update placeholders
+  const sp = document.getElementById('systemPrompt');
+  if (sp) sp.placeholder = t('systemPlaceholder');
+  document.getElementById('langBtn').textContent = currentLang === 'en' ? 'PT' : 'EN';
+  document.documentElement.lang = currentLang;
+}
+
+function toggleLang() {
+  currentLang = currentLang === 'en' ? 'pt' : 'en';
+  applyLang();
+  renderModels();
 }
 
 // =====================================================================
