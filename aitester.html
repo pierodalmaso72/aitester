@@ -204,18 +204,23 @@ select { cursor: pointer; }
   <!-- Prompts -->
   <div class="panel">
     <h2>Prompts</h2>
-    <div class="field">
-      <label>Preset</label>
-      <select id="presetSelect" onchange="loadPreset()">
-        <option value="custom">Custom</option>
-        <option value="classify">Classify (basic)</option>
-        <option value="keyfields">Key Fields (medium)</option>
-        <option value="fullanalysis">Full Analysis (high)</option>
-      </select>
+    <div class="field" style="display:flex;gap:8px;align-items:flex-end">
+      <div style="flex:1">
+        <label>Preset</label>
+        <select id="presetSelect" onchange="loadPreset()">
+          <option value="custom">Custom</option>
+          <option value="classify">Classify (basic)</option>
+          <option value="keyfields">Key Fields (medium)</option>
+          <option value="fullanalysis">Full Analysis (high)</option>
+        </select>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="savePrompt()" title="Save current prompt to file">Save</button>
+      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('promptFileInput').click()" title="Load prompt from file">Load</button>
+      <input type="file" id="promptFileInput" accept=".json" style="display:none" onchange="loadPromptFile(event)">
     </div>
     <div class="field">
       <label>System Prompt</label>
-      <textarea id="systemPrompt" rows="3" placeholder="System prompt (opcional)"></textarea>
+      <textarea id="systemPrompt" rows="3" placeholder="System prompt (optional)"></textarea>
     </div>
     <div class="field">
       <label>User Prompt</label>
@@ -439,6 +444,39 @@ function loadPreset() {
   const p = PRESETS[key];
   document.getElementById('systemPrompt').value = p.system;
   document.getElementById('userPrompt').value = p.user;
+}
+
+function savePrompt() {
+  const system = document.getElementById('systemPrompt').value;
+  const user = document.getElementById('userPrompt').value;
+  if (!system && !user) { alert('Nothing to save — prompts are empty'); return; }
+  const name = prompt('Prompt name:', 'My Prompt');
+  if (!name) return;
+  const data = JSON.stringify({ name, system, user }, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.json`;
+  a.click();
+}
+
+function loadPromptFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (data.system != null) document.getElementById('systemPrompt').value = data.system;
+      if (data.user != null) document.getElementById('userPrompt').value = data.user;
+      document.getElementById('presetSelect').value = 'custom';
+      updateRunButton();
+    } catch (err) {
+      alert('Invalid JSON file');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
 }
 
 // =====================================================================
