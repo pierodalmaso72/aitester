@@ -1352,7 +1352,7 @@ function exportHistory() {
 // i18n
 // =====================================================================
 
-let currentLang = 'en';
+let currentLang = /^pt\b/i.test(navigator.language) ? 'pt' : 'en';
 
 const I18N = {
   en: {
@@ -1448,19 +1448,26 @@ function toggleLang() {
 // Theme
 // =====================================================================
 
+function getSystemTheme() {
+  const mq = window.matchMedia('(prefers-color-scheme: dark)');
+  // If system has a preference, use it; otherwise default to dark
+  return mq.matches || !mq.media || mq.media === 'not all' ? 'dark' : 'light';
+}
+
 function toggleTheme() {
   const html = document.documentElement;
-  const current = html.getAttribute('data-theme');
-  const isDark = current === 'dark' || (!current && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  const next = isDark ? 'light' : 'dark';
+  const current = html.getAttribute('data-theme') || getSystemTheme();
+  const next = current === 'dark' ? 'light' : 'dark';
   html.setAttribute('data-theme', next);
   document.getElementById('themeBtn').textContent = next === 'dark' ? '☀️' : '🌙';
 }
 
-// Set initial icon based on system preference
-if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-  document.getElementById('themeBtn').textContent = '☀️';
-}
+// Set initial theme: use system preference, fallback to dark
+(function initTheme() {
+  const theme = getSystemTheme();
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('themeBtn').textContent = theme === 'dark' ? '☀️' : '🌙';
+})();
 
 // =====================================================================
 // Exchange rate
@@ -1484,6 +1491,7 @@ async function fetchExchangeRate() {
 // Init
 // =====================================================================
 
+applyLang();
 renderModels();
 fetchOpenRouterPrices();
 fetchExchangeRate();
