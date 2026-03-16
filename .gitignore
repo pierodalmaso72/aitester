@@ -1,0 +1,18 @@
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Credentials (should never exist, but just in case)
+.env
+.env.*
+*.key
+*.pem
+credentials.*

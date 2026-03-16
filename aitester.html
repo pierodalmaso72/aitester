@@ -1,15 +1,35 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI Tester</title>
 <style>
 :root {
+  --bg: #ffffff; --bg2: #f5f5f7; --bg3: #e8e8ed;
+  --fg: #1a1a2e; --fg2: #6b6b80; --accent: #5b6bff;
+  --accent2: #4a5adf; --green: #16a34a; --red: #dc2626;
+  --orange: #ea580c; --border: #d1d1d6; --radius: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1b2e; --bg2: #232440; --bg3: #2a2b4a;
+    --fg: #e0e0f0; --fg2: #a0a0c0; --accent: #6c7bff;
+    --accent2: #4a5adf; --green: #4ade80; --red: #f87171;
+    --orange: #fb923c; --border: #3a3b5a;
+  }
+}
+[data-theme="dark"] {
   --bg: #1a1b2e; --bg2: #232440; --bg3: #2a2b4a;
   --fg: #e0e0f0; --fg2: #a0a0c0; --accent: #6c7bff;
   --accent2: #4a5adf; --green: #4ade80; --red: #f87171;
-  --orange: #fb923c; --border: #3a3b5a; --radius: 8px;
+  --orange: #fb923c; --border: #3a3b5a;
+}
+[data-theme="light"] {
+  --bg: #ffffff; --bg2: #f5f5f7; --bg3: #e8e8ed;
+  --fg: #1a1a2e; --fg2: #6b6b80; --accent: #5b6bff;
+  --accent2: #4a5adf; --green: #16a34a; --red: #dc2626;
+  --orange: #ea580c; --border: #d1d1d6;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--fg); min-height: 100vh; }
@@ -129,6 +149,15 @@ select { cursor: pointer; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
 
+/* Theme toggle */
+.theme-toggle { background: none; border: 1px solid var(--border); border-radius: var(--radius); color: var(--fg2); cursor: pointer; font-size: 1rem; padding: 4px 8px; }
+.theme-toggle:hover { color: var(--accent); border-color: var(--accent); }
+
+/* Footer */
+.footer { text-align: center; padding: 16px 0; font-size: 0.65rem; color: var(--fg2); line-height: 1.6; margin-top: 12px; border-top: 1px solid var(--border); }
+.footer a { color: var(--accent); text-decoration: none; }
+.footer a:hover { text-decoration: underline; }
+
 @media (max-width: 768px) {
   .keys-row { grid-template-columns: 1fr; }
   .results-grid.cols-3, .results-grid.cols-4 { grid-template-columns: 1fr 1fr; }
@@ -141,7 +170,10 @@ select { cursor: pointer; }
   <!-- Header -->
   <div class="header">
     <h1>AI Tester <span style="font-size:0.5em;color:var(--fg2)">v1.3.0</span></h1>
-    <span style="color:var(--fg2);font-size:0.75rem">v1.3.0 — Browser-only, no server needed</span>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span style="color:var(--fg2);font-size:0.75rem">Browser-only, no server needed</span>
+      <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn" title="Toggle theme">🌙</button>
+    </div>
   </div>
 
   <!-- API Keys -->
@@ -165,7 +197,7 @@ select { cursor: pointer; }
           <input type="password" id="keyGemini" placeholder="AIza..." oninput="onKeyChange()">
         </div>
       </div>
-      <div style="font-size:0.7rem;color:var(--fg2);margin-top:4px">Keys ficam em memória — não são guardadas. Ao meter key OpenAI/Gemini, os modelos são carregados automaticamente.</div>
+      <div style="font-size:0.7rem;color:var(--fg2);margin-top:4px">Keys are kept in memory only — never saved. Adding an OpenAI/Gemini key auto-loads available models.</div>
     </div>
   </div>
 
@@ -176,9 +208,9 @@ select { cursor: pointer; }
       <label>Preset</label>
       <select id="presetSelect" onchange="loadPreset()">
         <option value="custom">Custom</option>
-        <option value="prefilter">Prefilter Gate</option>
-        <option value="qrcomplement">QR Complement</option>
-        <option value="fullanalysis">Full Analysis</option>
+        <option value="classify">Classify (basic)</option>
+        <option value="keyfields">Key Fields (medium)</option>
+        <option value="fullanalysis">Full Analysis (high)</option>
       </select>
     </div>
     <div class="field">
@@ -190,15 +222,15 @@ select { cursor: pointer; }
       <textarea id="userPrompt" rows="5" placeholder="User prompt..."></textarea>
     </div>
     <div class="field">
-      <label>Ficheiros (opcional)</label>
+      <label>Files (optional)</label>
       <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
-        <span id="dropText">Arrasta ficheiros aqui ou clica para seleccionar</span>
+        <span id="dropText">Drop files here or click to select</span>
         <input type="file" id="fileInput" style="display:none" multiple onchange="handleFileSelect(event)">
       </div>
       <div id="fileList" class="file-list"></div>
       <div id="fileMode" class="file-mode" style="display:none">
-        <label><input type="radio" name="fileMode" value="sequential" checked> 1 ficheiro por pedido (sequencial)</label>
-        <label><input type="radio" name="fileMode" value="batch"> Todos num pedido</label>
+        <label><input type="radio" name="fileMode" value="sequential" checked> 1 file per request (sequential)</label>
+        <label><input type="radio" name="fileMode" value="batch"> All in one request</label>
       </div>
     </div>
     <div class="actions">
@@ -209,7 +241,7 @@ select { cursor: pointer; }
   <!-- Models -->
   <div class="panel" id="modelsPanel">
     <div class="panel-header" onclick="togglePanel('modelsPanel')">
-      <h2>Modelos <span style="font-size:0.7rem;color:var(--fg2)">(selecciona até 4)</span></h2>
+      <h2>Models <span style="font-size:0.7rem;color:var(--fg2)">(select up to 4)</span></h2>
       <span>−</span>
     </div>
     <div class="panel-body">
@@ -221,8 +253,8 @@ select { cursor: pointer; }
   <div id="resultsPanel" style="display:none">
     <div class="panel">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <h2>Resultados</h2>
-        <label style="font-size:0.7rem;color:var(--fg2);display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="groupRuns" onchange="onGroupToggle()" style="accent-color:var(--accent)"> Agrupar</label>
+        <h2>Results</h2>
+        <label style="font-size:0.7rem;color:var(--fg2);display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="groupRuns" onchange="onGroupToggle()" style="accent-color:var(--accent)"> Group</label>
       </div>
       <div id="resultsGrid" class="results-grid"></div>
     </div>
@@ -232,7 +264,7 @@ select { cursor: pointer; }
   <div id="historyPanel" style="display:none">
     <div class="panel">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <h2>Histórico</h2>
+        <h2>History</h2>
         <div style="display:flex;gap:8px;align-items:center">
           <button class="btn btn-secondary btn-sm" onclick="exportHistory()">Export .md</button>
         </div>
@@ -241,12 +273,18 @@ select { cursor: pointer; }
     </div>
   </div>
 
+  <!-- Footer -->
+  <div class="footer">
+    Model pricing from <a href="https://openrouter.ai" target="_blank">OpenRouter</a> (public API, no auth required) | Exchange rates from <a href="https://open.er-api.com" target="_blank">open.er-api.com</a><br>
+    <strong>Beta</strong> — This tool is provided as-is, with no warranty. Pricing data may be inaccurate or outdated. Always verify costs with your provider's official pricing page. The authors assume no responsibility for any charges incurred.
+  </div>
+
 </div>
 
 <!-- Price Dialog -->
 <div class="dialog-overlay" id="priceDialog" style="display:none">
   <div class="dialog">
-    <h3>Preço do modelo</h3>
+    <h3>Model Pricing</h3>
     <p id="priceDialogModel" style="color:var(--fg2);font-size:0.85rem;margin-bottom:12px"></p>
     <div class="row">
       <div class="field">
@@ -260,8 +298,8 @@ select { cursor: pointer; }
     </div>
     <p id="priceDialogSource" style="font-size:0.7rem;color:var(--fg2);margin-top:8px"></p>
     <div class="actions">
-      <button class="btn btn-secondary" onclick="closePriceDialog()">Cancelar</button>
-      <button class="btn btn-primary" onclick="acceptPrice()">Aceitar</button>
+      <button class="btn btn-secondary" onclick="closePriceDialog()">Cancel</button>
+      <button class="btn btn-primary" onclick="acceptPrice()">Accept</button>
     </div>
   </div>
 </div>
@@ -382,17 +420,17 @@ const PROVIDER_LABELS = { anthropic: 'Anthropic', openai: 'OpenAI', gemini: 'Goo
 
 const PRESETS = {
   custom: { system: '', user: '' },
-  prefilter: {
+  classify: {
     system: '',
-    user: `Olha para este documento e responde APENAS com um JSON:\n\n{\n  "contabilistico": true ou false,\n  "motivo": "razao curta"\n}\n\nResponde true APENAS se for: factura, recibo, nota de credito, ou extracto bancario.\nResponde false para TUDO o resto.`
+    user: `Look at this document and reply ONLY with JSON:\n\n{\n  "is_financial": true or false,\n  "reason": "short reason"\n}\n\nReply true ONLY if it is: an invoice, receipt, credit note, or bank statement.\nReply false for EVERYTHING else.`
   },
-  qrcomplement: {
-    system: `Es um assistente especializado em contabilidade portuguesa.\nConheces o SNC (Sistema de Normalizacao Contabilistica) e o plano de contas portugues.\nExtrais dados de documentos fiscais com precisao.\nRespondes SEMPRE em JSON valido, sem texto adicional.\nUsas formato de data YYYY-MM-DD.\nValores monetarios em EUR com 2 casas decimais.`,
-    user: `Este documento ja foi processado pelo QR Code AT. Preciso apenas que:\n1. Identifiques o NOME da empresa emitente (quem emitiu o documento)\n2. Se vires um codigo ATCUD impresso como texto no documento (ex: "ATCUD: J6JWPXCP-0450439"), inclui-o\n3. Descreve a natureza do gasto como um contabilista descreveria para o lancamento\n\nResponde APENAS com JSON:\n{\n  "nomeEmitente": "Nome da empresa",\n  "atcud": "codigo ATCUD se visivel, ou null",\n  "naturezaGasto": "descricao contabilistica do gasto"\n}`
+  keyfields: {
+    system: `You are a specialist assistant for financial document processing.\nYou extract data from fiscal documents with precision.\nYou ALWAYS reply in valid JSON, with no additional text.\nUse date format YYYY-MM-DD.\nMonetary values with 2 decimal places.`,
+    user: `Extract the following key fields from this document:\n1. The issuer company name\n2. The document number/reference\n3. The date\n4. The total amount and currency\n5. A brief description of the expense\n\nReply ONLY with JSON:\n{\n  "issuer": "Company name",\n  "documentNumber": "reference or null",\n  "date": "YYYY-MM-DD",\n  "totalAmount": 123.45,\n  "currency": "EUR",\n  "description": "brief expense description"\n}`
   },
   fullanalysis: {
-    system: `Es um assistente especializado em contabilidade portuguesa.\nConheces o SNC (Sistema de Normalizacao Contabilistica) e o plano de contas portugues.\nExtrais dados de documentos fiscais com precisao.\nRespondes SEMPRE em JSON valido, sem texto adicional.\nUsas formato de data YYYY-MM-DD.\nValores monetarios em EUR com 2 casas decimais.`,
-    user: `Analisa este documento contabilistico e devolve um JSON com a seguinte estrutura exacta:\n\n{\n  "tipoDoc": "FC|DSP|NCF|REC|EXT|UNKNOWN",\n  "confianca": 0.95,\n  "nifEmitente": "123456789",\n  "nomeEmitente": "Nome da empresa emitente",\n  "nifDestinatario": "987654321",\n  "nomeDestinatario": "Nome da empresa destinataria",\n  "dataDocumento": "2026-03-01",\n  "numeroDocumento": "FC 2026/123",\n  "valorTotal": 123.45,\n  "valorIVA": 23.45,\n  "valorBase": 100.00,\n  "taxaIVA": 23,\n  "moeda": "EUR",\n  "atcud": "codigo ATCUD se visivel, ou null",\n  "temQRCode": true,\n  "naturezaGasto": "Fornecimento de energia electrica"\n}\n\nRegras:\n- tipoDoc: FC=fatura compra, DSP=despesa, NCF=nota credito fornecedor, REC=recibo, EXT=extracto bancario, UNKNOWN=nao identificado\n- confianca: 0 a 1\n- NIF: 9 digitos PT, vazio se estrangeiro\n- Datas YYYY-MM-DD\n- Valores numericos sem simbolo\n- naturezaGasto: descreve como um contabilista faria\n- Responde APENAS com JSON\n\nIMPORTANTE — UNKNOWN para: proformas, ordens de compra, orcamentos, guias de transporte.`
+    system: `You are a specialist assistant for financial document processing.\nYou extract data from fiscal documents with precision.\nYou ALWAYS reply in valid JSON, with no additional text.\nUse date format YYYY-MM-DD.\nMonetary values with 2 decimal places.`,
+    user: `Analyse this financial document and return a JSON with the following exact structure:\n\n{\n  "docType": "INV|EXP|CRN|REC|BST|UNKNOWN",\n  "confidence": 0.95,\n  "issuerTaxId": "123456789",\n  "issuerName": "Issuer company name",\n  "recipientTaxId": "987654321",\n  "recipientName": "Recipient company name",\n  "documentDate": "2026-03-01",\n  "documentNumber": "INV 2026/123",\n  "totalAmount": 123.45,\n  "taxAmount": 23.45,\n  "netAmount": 100.00,\n  "taxRate": 23,\n  "currency": "EUR",\n  "description": "Electricity supply"\n}\n\nRules:\n- docType: INV=purchase invoice, EXP=expense, CRN=credit note, REC=receipt, BST=bank statement, UNKNOWN=unidentified\n- confidence: 0 to 1\n- Dates YYYY-MM-DD\n- Numeric values without currency symbol\n- description: describe as an accountant would\n- Reply ONLY with JSON\n\nIMPORTANT — UNKNOWN for: proformas, purchase orders, quotes, delivery notes.`
   },
 };
 
@@ -526,7 +564,7 @@ function renderModels(focusId) {
       : models;
     // Selected models float to top
     filtered.sort((a, b) => (selectedModels.has(b.id) ? 1 : 0) - (selectedModels.has(a.id) ? 1 : 0));
-    html += `<div class="model-group"><h3 style="display:flex;align-items:center;gap:8px">${PROVIDER_LABELS[provider]} <input type="text" id="filter_${provider}" placeholder="Filtrar..." value="${esc(filterVal)}" oninput="renderModels(this.id)" style="flex:1;max-width:180px;padding:2px 6px;font-size:0.7rem;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--fg)"></h3>`;
+    html += `<div class="model-group"><h3 style="display:flex;align-items:center;gap:8px">${PROVIDER_LABELS[provider]} <input type="text" id="filter_${provider}" placeholder="Filter..." value="${esc(filterVal)}" oninput="renderModels(this.id)" style="flex:1;max-width:180px;padding:2px 6px;font-size:0.7rem;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--fg)"></h3>`;
     for (const m of filtered) {
       const checked = selectedModels.has(m.id) ? 'checked' : '';
       html += `<div class="model-item">
@@ -536,8 +574,8 @@ function renderModels(focusId) {
           <span>$</span><input type="number" step="0.01" value="${m.priceIn.toFixed(2)}" id="pin_${m.id}" onchange="onPriceEdit('${m.id}')" title="Input $/M">
           <span>/</span><input type="number" step="0.01" value="${m.priceOut.toFixed(2)}" id="pout_${m.id}" onchange="onPriceEdit('${m.id}')" title="Output $/M">
           ${isPriceModified(m)
-            ? `<button class="price-fetch" onclick="resetPrice('${m.id}')" title="Repor preço original" style="color:var(--red)">✕</button>`
-            : `<button class="price-fetch" onclick="fetchPrice('${m.id}')" title="Buscar preço via Gemini">&#x1f504;</button>`}
+            ? `<button class="price-fetch" onclick="resetPrice('${m.id}')" title="Reset to original price" style="color:var(--red)">✕</button>`
+            : `<button class="price-fetch" onclick="fetchPrice('${m.id}')" title="Fetch price via Gemini">&#x1f504;</button>`}
         </div>
       </div>`;
     }
@@ -635,16 +673,16 @@ function renderFileList() {
   if (!uploadedFiles.length) {
     list.innerHTML = '';
     modeDiv.style.display = 'none';
-    document.getElementById('dropText').textContent = 'Arrasta ficheiros aqui ou clica para seleccionar';
+    document.getElementById('dropText').textContent = 'Drop files here or click to select';
     return;
   }
-  document.getElementById('dropText').textContent = `+ Adicionar mais ficheiros (${uploadedFiles.length} seleccionado${uploadedFiles.length > 1 ? 's' : ''})`;
+  document.getElementById('dropText').textContent = `+ Add more files (${uploadedFiles.length} selected)`;
   modeDiv.style.display = uploadedFiles.length > 1 ? 'flex' : 'none';
   list.innerHTML = uploadedFiles.map((f, i) =>
     `<div class="file-item">
       <span class="file-name">${escapeHtml(f.name)}</span>
       <span class="file-size">${(f.size/1024).toFixed(0)} KB</span>
-      <button class="file-remove" onclick="removeFile(${i})" title="Remover">✕</button>
+      <button class="file-remove" onclick="removeFile(${i})" title="Remove">✕</button>
     </div>`
   ).join('');
 
@@ -661,14 +699,14 @@ function getFileMode() {
 
 async function fetchPrice(modelId) {
   const geminiKey = document.getElementById('keyGemini').value.trim();
-  if (!geminiKey) { alert('Coloca a key Gemini primeiro'); return; }
+  if (!geminiKey) { alert('Add your Gemini key first'); return; }
 
   priceDialogTarget = modelId;
   const model = MODELS[modelId];
   document.getElementById('priceDialogModel').textContent = `${model.name} (${modelId})`;
   document.getElementById('priceDialogIn').value = model.priceIn;
   document.getElementById('priceDialogOut').value = model.priceOut;
-  document.getElementById('priceDialogSource').textContent = 'A consultar Gemini Flash-Lite...';
+  document.getElementById('priceDialogSource').textContent = 'Querying Gemini Flash-Lite...';
   document.getElementById('priceDialog').style.display = 'flex';
 
   try {
@@ -694,12 +732,12 @@ async function fetchPrice(modelId) {
       pOut = Math.round(pOut * 100) / 100;
       document.getElementById('priceDialogIn').value = pIn || model.priceIn;
       document.getElementById('priceDialogOut').value = pOut || model.priceOut;
-      document.getElementById('priceDialogSource').textContent = `Via Gemini Flash-Lite — verifica e aceita ou edita`;
+      document.getElementById('priceDialogSource').textContent = `Via Gemini Flash-Lite — verify and accept or edit`;
     } else {
-      document.getElementById('priceDialogSource').textContent = `Gemini não devolveu preço — edita manualmente`;
+      document.getElementById('priceDialogSource').textContent = `Gemini returned no price — edit manually`;
     }
   } catch (e) {
-    document.getElementById('priceDialogSource').textContent = `Erro: ${e.message}`;
+    document.getElementById('priceDialogSource').textContent = `Error: ${e.message}`;
   }
 }
 
@@ -754,7 +792,7 @@ async function callAnthropic(modelId, systemPrompt, userPrompt, files, signal) {
   });
 
   const data = await res.json();
-  if (data.error) throw new Error(data.error.message);
+  if (data.error) throw new Errorr(data.error.message);
 
   const text = data.content?.find(b => b.type === 'text')?.text || '';
   return { text, tokensIn: data.usage?.input_tokens || 0, tokensOut: data.usage?.output_tokens || 0 };
@@ -782,7 +820,7 @@ async function callOpenAI(modelId, systemPrompt, userPrompt, files, signal) {
     }
   }
   let promptText = userPrompt;
-  if (skippedImages) promptText += `\n\n[Nota: ${skippedImages} imagem(ns) omitida(s) — modelo não suporta visão]`;
+  if (skippedImages) promptText += `\n\n[Note: ${skippedImages} image(s) skipped — model does not support vision]`;
   userContent.push({ type: 'text', text: promptText });
   messages.push({ role: 'user', content: userContent });
 
@@ -798,7 +836,7 @@ async function callOpenAI(modelId, systemPrompt, userPrompt, files, signal) {
   });
 
   const data = await res.json();
-  if (data.error) throw new Error(data.error.message);
+  if (data.error) throw new Errorr(data.error.message);
 
   const text = data.choices?.[0]?.message?.content || '';
   return { text, tokensIn: data.usage?.prompt_tokens || 0, tokensOut: data.usage?.completion_tokens || 0 };
@@ -824,7 +862,7 @@ async function callGemini(modelId, systemPrompt, userPrompt, files, signal) {
   });
 
   const data = await res.json();
-  if (data.error) throw new Error(data.error.message);
+  if (data.error) throw new Errorr(data.error.message);
 
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
   const usage = data.usageMetadata || {};
@@ -836,7 +874,7 @@ async function callModel(modelId, systemPrompt, userPrompt, files, signal) {
   if (provider === 'anthropic') return callAnthropic(modelId, systemPrompt, userPrompt, files, signal);
   if (provider === 'openai') return callOpenAI(modelId, systemPrompt, userPrompt, files, signal);
   if (provider === 'gemini') return callGemini(modelId, systemPrompt, userPrompt, files, signal);
-  throw new Error(`Unknown provider: ${provider}`);
+  throw new Errorr(`Unknown provider: ${provider}`);
 }
 
 // =====================================================================
@@ -877,7 +915,7 @@ async function runSingleBatch(systemPrompt, userPrompt, files, models, groupId, 
         <span class="model-name">${MODELS[id].name}</span>
         <div class="result-meta"><span class="spinner"></span></div>
       </div>
-      <div class="result-body"><pre class="loading">A processar...</pre></div>
+      <div class="result-body"><pre class="loading">Processing...</pre></div>
     </div>
   `).join('');
 
@@ -896,7 +934,7 @@ async function runSingleBatch(systemPrompt, userPrompt, files, models, groupId, 
       renderResult(modelId, run.results[modelId]);
     } catch (e) {
       const elapsed = ((performance.now() - start) / 1000).toFixed(1);
-      const msg = e.name === 'AbortError' ? 'Cancelado' : e.message;
+      const msg = e.name === 'AbortErrorr' ? 'Cancelled' : e.message;
       run.results[modelId] = { text: '', tokensIn: 0, tokensOut: 0, costEUR: 0, elapsed, error: msg };
       renderResult(modelId, run.results[modelId]);
     }
@@ -936,7 +974,7 @@ async function runTests() {
     if (uploadedFiles.length > 1 && mode === 'sequential') {
       for (let i = 0; i < uploadedFiles.length; i++) {
         if (runAbortController?.signal.aborted) break;
-        const lastId = await runSingleBatch(systemPrompt, userPrompt, [uploadedFiles[i]], models, groupId, `Ficheiro ${i + 1}/${uploadedFiles.length}: ${uploadedFiles[i].name}`);
+        const lastId = await runSingleBatch(systemPrompt, userPrompt, [uploadedFiles[i]], models, groupId, `File ${i + 1}/${uploadedFiles.length}: ${uploadedFiles[i].name}`);
         activeHistoryId = lastId;
         renderHistory();
       }
@@ -946,7 +984,7 @@ async function runTests() {
       renderHistory();
     }
   } catch (e) {
-    if (e.name !== 'AbortError') console.error(e);
+    if (e.name !== 'AbortErrorr') console.error(e);
   }
 
   isRunning = false;
@@ -961,7 +999,7 @@ function renderResult(modelId, result) {
   if (!card) return;
 
   const meta = result.error
-    ? `<span style="color:var(--red)">Erro</span> <span>${result.elapsed}s</span>`
+    ? `<span style="color:var(--red)">Error</span> <span>${result.elapsed}s</span>`
     : `<span>${result.tokensIn}+${result.tokensOut} tok</span><span>${result.elapsed}s</span><span class="cost">EUR${result.costEUR.toFixed(4)}</span>`;
 
   const body = result.error
@@ -1028,7 +1066,7 @@ function historyItemHtml(r, onclick) {
   return `<div class="history-item ${active}" onclick="${onclick}">
     <span class="hist-time">${formatTime(r.timestamp)}</span>
     <span class="hist-label">Run ${r.id}${files ? ' | ' + escapeHtml(files) : ''}</span>
-    <button class="hist-remove" onclick="removeHistoryRun(${r.id}, event)" title="Remover">✕</button>
+    <button class="hist-remove" onclick="removeHistoryRun(${r.id}, event)" title="Remove">✕</button>
   </div>`;
 }
 
@@ -1053,7 +1091,7 @@ function renderHistory() {
       const fileNames = runs.map(r => r.files?.[0]?.name || '').filter(Boolean).join(', ');
       return `<div class="history-item ${isActive ? 'active' : ''}" onclick="showGroupedRuns(${gid})">
         <span class="hist-time">${formatTime(runs[0].timestamp)}</span>
-        <span class="hist-label" title="${escapeHtml(fileNames)}">Grupo ${gid} (${runs.length} runs)</span>
+        <span class="hist-label" title="${escapeHtml(fileNames)}">Group ${gid} (${runs.length} runs)</span>
       </div>`;
     }).join('');
   } else {
@@ -1093,7 +1131,7 @@ function showHistoryRun(id) {
     if (!result) continue;
     const m = run.models.find(x => x.id === modelId);
     const meta = result.error
-      ? `<span style="color:var(--red)">Erro</span>`
+      ? `<span style="color:var(--red)">Error</span>`
       : `<span>${result.tokensIn}+${result.tokensOut} tok</span><span>${result.elapsed}s</span><span class="cost">EUR${result.costEUR.toFixed(4)}</span>`;
     const body = result.error
       ? `<pre class="error">${escapeHtml(result.error)}</pre>`
@@ -1128,7 +1166,7 @@ function showGroupedRuns(groupId) {
       if (!result) continue;
       const m = run.models.find(x => x.id === modelId);
       const meta = result.error
-        ? `<span style="color:var(--red)">Erro</span>`
+        ? `<span style="color:var(--red)">Error</span>`
         : `<span>${result.tokensIn}+${result.tokensOut} tok</span><span>${result.elapsed}s</span><span class="cost">EUR${result.costEUR.toFixed(4)}</span>`;
       const body = result.error
         ? `<pre class="error">${escapeHtml(result.error)}</pre>`
@@ -1155,7 +1193,7 @@ function exportHistory() {
   for (const run of history) {
     lines.push('---', '', `## Run ${run.id}`, '');
     lines.push(`**Timestamp:** ${run.timestamp}`);
-    if (run.files?.length) lines.push(`**Ficheiros:** ${run.files.map(f => `${f.name} (${(f.size/1024).toFixed(0)} KB)`).join(', ')}`);
+    if (run.files?.length) lines.push(`**Files:** ${run.files.map(f => `${f.name} (${(f.size/1024).toFixed(0)} KB)`).join(', ')}`);
     if (run.systemPrompt) lines.push('', '**System Prompt:**', '```', run.systemPrompt, '```');
     lines.push('', '**User Prompt:**', '```', run.userPrompt, '```', '');
 
@@ -1165,15 +1203,15 @@ function exportHistory() {
     lines.push('|---|' + models.map(() => '---|').join(''));
     lines.push('| Tokens in | ' + models.map(id => run.results[id]?.tokensIn || '—').join(' | ') + ' |');
     lines.push('| Tokens out | ' + models.map(id => run.results[id]?.tokensOut || '—').join(' | ') + ' |');
-    lines.push('| Tempo | ' + models.map(id => (run.results[id]?.elapsed || '—') + 's').join(' | ') + ' |');
-    lines.push('| Custo | ' + models.map(id => run.results[id]?.error ? 'ERRO' : 'EUR' + (run.results[id]?.costEUR?.toFixed(4) || '—')).join(' | ') + ' |');
+    lines.push('| Time | ' + models.map(id => (run.results[id]?.elapsed || '—') + 's').join(' | ') + ' |');
+    lines.push('| Cost | ' + models.map(id => run.results[id]?.error ? 'ERROR' : 'EUR' + (run.results[id]?.costEUR?.toFixed(4) || '—')).join(' | ') + ' |');
     lines.push('');
 
     for (const id of models) {
       const r = run.results[id];
       const name = run.models.find(m=>m.id===id).name;
       lines.push(`### ${name}`);
-      if (r?.error) { lines.push('', '**Erro:**', '```', r.error, '```'); }
+      if (r?.error) { lines.push('', '**Error:**', '```', r.error, '```'); }
       else if (r?.text) { lines.push('', '```json', r.text, '```'); }
       lines.push('');
     }
@@ -1184,6 +1222,24 @@ function exportHistory() {
   a.href = URL.createObjectURL(blob);
   a.download = `aitester-export-${new Date().toISOString().slice(0,10)}.md`;
   a.click();
+}
+
+// =====================================================================
+// Theme
+// =====================================================================
+
+function toggleTheme() {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme');
+  const isDark = current === 'dark' || (!current && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const next = isDark ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+  document.getElementById('themeBtn').textContent = next === 'dark' ? '☀️' : '🌙';
+}
+
+// Set initial icon based on system preference
+if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+  document.getElementById('themeBtn').textContent = '☀️';
 }
 
 // =====================================================================

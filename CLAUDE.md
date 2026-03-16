@@ -1,69 +1,65 @@
 # AI Tester
 
-## O que é
+## What it is
 
-Single-page HTML app para testar e comparar modelos AI de 3 providers (Anthropic, OpenAI, Google Gemini). Sem servidor — corre inteiramente no browser.
+Single-page HTML app to test and compare AI models from 3 providers (Anthropic, OpenAI, Google Gemini). No server — runs entirely in the browser.
 
 ## Stack
 
-- 1 ficheiro HTML com CSS + JS inline
-- Sem dependências, sem build, sem framework
-- Calls directas às APIs REST via `fetch()`
-- Dark theme
+- 1 HTML file with inline CSS + JS
+- No dependencies, no build, no framework
+- Direct REST API calls via `fetch()`
+- Light/Dark theme (system default + manual toggle)
 
-## Providers e APIs
+## Providers & APIs
 
 ### Anthropic (Claude)
 - Endpoint: `https://api.anthropic.com/v1/messages`
 - Headers: `x-api-key`, `anthropic-version: 2023-06-01`, `anthropic-dangerous-direct-browser-access: true`
 - PDF: `{ type: 'document', source: { type: 'base64', media_type, data } }`
-- Imagem: `{ type: 'image', source: { type: 'base64', media_type, data } }`
-- Listagem modelos: `GET https://api.anthropic.com/v1/models` (com headers de auth)
-- CORS: requer header `anthropic-dangerous-direct-browser-access: true`
+- Image: `{ type: 'image', source: { type: 'base64', media_type, data } }`
+- Model listing: `GET https://api.anthropic.com/v1/models` (with auth headers)
+- CORS: requires header `anthropic-dangerous-direct-browser-access: true`
 
 ### OpenAI (GPT)
 - Endpoint: `https://api.openai.com/v1/chat/completions`
 - Headers: `Authorization: Bearer {key}`
-- Ficheiro: `{ type: 'file', file: { filename, file_data: 'data:{mime};base64,{data}' } }`
-- Listagem modelos: `GET https://api.openai.com/v1/models`
-- Reasoning models (gpt-5*, o3, o4): usar `max_completion_tokens` em vez de `max_tokens`
+- Image: `{ type: 'image_url', image_url: { url: 'data:{mime};base64,{data}' } }`
+- File: `{ type: 'file', file: { filename, file_data: 'data:{mime};base64,{data}' } }`
+- Model listing: `GET https://api.openai.com/v1/models`
+- Reasoning models (gpt-5*, o3, o4): use `max_completion_tokens` instead of `max_tokens`, `developer` role instead of `system`
+- Models without vision (gpt-5-nano, o3-mini, o4-mini): images skipped automatically
 
 ### Google Gemini
 - Endpoint: `https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}`
-- Ficheiro: `{ inlineData: { mimeType, data } }`
-- Listagem modelos: `GET https://generativelanguage.googleapis.com/v1beta/models?key={key}`
+- File: `{ inlineData: { mimeType, data } }`
+- Model listing: `GET https://generativelanguage.googleapis.com/v1beta/models?key={key}`
 
-## Funcionalidades actuais
+## Pricing
 
-- API keys em memória (não persistem)
-- Modelos: lista dinâmica via API (todos os 3 providers) + fallback hardcoded Anthropic
-- System prompt + user prompt separados
-- Presets de prompts (editáveis)
-- Upload de ficheiros (qualquer formato, drag & drop)
-- Até 4 modelos em paralelo
-- Resultados em colunas lado a lado (JSON formatado, tokens, custo EUR)
-- Histórico na sessão (perde-se ao fechar tab)
-- Export para .md
-- Preços auto-fetch via OpenRouter API (sem auth) + editáveis + fetch manual via Gemini Flash-Lite (ícone 🔄)
+- Auto-fetched from OpenRouter public API (no auth): `GET https://openrouter.ai/api/v1/models`
+- USD/EUR exchange rate from `open.er-api.com`
+- Manual override per model (editable inputs + Gemini Flash-Lite fetch)
+- No hardcoded prices — defaults to 0 if OpenRouter has no data
 
 ## Versioning
 
 - **SemVer** (MAJOR.MINOR.PATCH)
-- Versão actual: ver `<h1>` no `aitester.html`
-- CHANGELOG.md segue formato [Keep a Changelog](https://keepachangelog.com/)
-- Ao fazer bump: actualizar versão no `<h1>` do HTML + entrada no CHANGELOG.md
+- Current version: see `<h1>` in `aitester.html`
+- CHANGELOG.md follows [Keep a Changelog](https://keepachangelog.com/)
+- On bump: update version in `<h1>` of HTML + CHANGELOG.md entry
 
-## Convenções
+## Conventions
 
-- **Linguagem:** JavaScript vanilla (inline no HTML)
-- **Sem dependências** — tudo self-contained
-- **Dark theme** com CSS variables
-- **Commits:** mensagens em inglês, descritivas
+- **Language:** Vanilla JavaScript (inline in HTML)
+- **No dependencies** — fully self-contained
+- **UI language:** English
+- **Commits:** English, descriptive messages
+- **Prices:** Never hardcode — use OpenRouter or 0
 
-## Roadmap / ideias futuras
+## Roadmap
 
-- Streaming de respostas
-- Comparação diff entre respostas
-- Templates de prompts partilháveis (URL params)
-- Suporte a mais providers (Mistral, Cohere, etc.)
-- Modo batch (testar N ficheiros de uma vez)
+- Streaming responses
+- Diff comparison between responses
+- Shareable prompt templates (URL params)
+- More providers (Mistral, Cohere, etc.)
