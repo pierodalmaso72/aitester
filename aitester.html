@@ -589,14 +589,38 @@ function handleFileSelect(e) {
 }
 
 function processFile(file) {
-  const reader = new FileReader();
-  reader.onload = () => {
-    const base64 = reader.result.split(',')[1];
-    uploadedFiles.push({ name: file.name, size: file.size, mimeType: file.type || 'application/octet-stream', base64 });
-    renderFileList();
-    updateRunButton();
-  };
-  reader.readAsDataURL(file);
+  const mimeType = file.type || 'application/octet-stream';
+  // Resize large images (> 4MB) to reduce base64 payload
+  if (mimeType.startsWith('image/') && file.size > 4 * 1024 * 1024) {
+    const img = new Image();
+    img.onload = () => {
+      const maxDim = 2048;
+      let w = img.width, h = img.height;
+      if (w > maxDim || h > maxDim) {
+        const ratio = Math.min(maxDim / w, maxDim / h);
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      const base64 = dataUrl.split(',')[1];
+      uploadedFiles.push({ name: file.name, size: file.size, mimeType: 'image/jpeg', base64 });
+      renderFileList();
+      updateRunButton();
+    };
+    img.src = URL.createObjectURL(file);
+  } else {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result.split(',')[1];
+      uploadedFiles.push({ name: file.name, size: file.size, mimeType, base64 });
+      renderFileList();
+      updateRunButton();
+    };
+    reader.readAsDataURL(file);
+  }
 }
 
 function removeFile(index) {
@@ -740,7 +764,10 @@ async function callOpenAI(modelId, systemPrompt, userPrompt, files, signal) {
   const key = document.getElementById('keyOpenAI').value.trim();
   const messages = [];
 
-  if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
+  const isReasoning = /^(gpt-5|o[34])/.test(modelId);
+
+  // Reasoning models use 'developer' role instead of 'system'
+  if (systemPrompt) messages.push({ role: isReasoning ? 'developer' : 'system', content: systemPrompt });
 
   const userContent = [];
   for (const file of files) {
@@ -753,7 +780,6 @@ async function callOpenAI(modelId, systemPrompt, userPrompt, files, signal) {
   userContent.push({ type: 'text', text: userPrompt });
   messages.push({ role: 'user', content: userContent });
 
-  const isReasoning = /^(gpt-5|o[34])/.test(modelId);
   const body = { model: modelId, messages };
   if (isReasoning) body.max_completion_tokens = 4096;
   else body.max_tokens = 4096;
