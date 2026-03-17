@@ -17,3 +17,7 @@ desktop.ini
 *.pem
 credentials.*
 CLAUDE.md
+.claude/
+
+# Backup bundles
+*.bundle
