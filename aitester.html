@@ -187,6 +187,13 @@ select { cursor: pointer; }
 .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--fg); color: var(--bg); padding: 10px 20px; border-radius: var(--radius); font-size: 0.8rem; font-weight: 500; z-index: 200; opacity: 0; transition: transform 0.3s, opacity 0.3s; pointer-events: none; box-shadow: var(--shadow-md); }
 .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 300; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+.modal-overlay.show { opacity: 1; pointer-events: auto; }
+.modal-box { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; max-width: 400px; width: 90%; box-shadow: var(--shadow-md); }
+.modal-box h3 { font-size: 0.9rem; margin-bottom: 10px; }
+.modal-box p { font-size: 0.78rem; color: var(--fg2); line-height: 1.5; margin-bottom: 18px; }
+.modal-box .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
 /* Footer */
 .footer { text-align: center; padding: 20px 0; font-size: 0.63rem; color: var(--fg2); line-height: 1.7; margin-top: 16px; border-top: 1px solid var(--border); }
 .footer a { color: var(--accent); text-decoration: none; font-weight: 500; }
@@ -235,7 +242,7 @@ select { cursor: pointer; }
       <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
         <button class="btn btn-secondary btn-sm" onclick="saveKeys()">Save Keys</button>
         <button class="btn btn-secondary btn-sm" onclick="clearKeys()">Clear Keys</button>
-        <span style="font-size:0.7rem;color:var(--fg2)" data-i18n="keysNote">Keys are kept in memory only — never saved. Adding an OpenAI/Gemini key auto-loads available models.</span>
+        <span style="font-size:0.7rem;color:var(--fg2)" data-i18n="keysNote">Adding a key auto-loads available models. Use Save Keys to persist locally.</span>
       </div>
     </div>
   </div>
@@ -285,7 +292,7 @@ select { cursor: pointer; }
   <!-- Models -->
   <div class="panel" id="modelsPanel">
     <div class="panel-header" onclick="togglePanel('modelsPanel')">
-      <h2><span data-i18n="models">Models</span> <span style="font-size:0.7rem;color:var(--fg2)" data-i18n="selectUpTo4">(select up to 4)</span></h2>
+      <h2><span data-i18n="models">Models</span> <span style="font-size:0.7rem;color:var(--fg2)" data-i18n="selectUpTo4">(select up to 4)</span> <span id="modelsSelected" style="font-size:0.7rem;color:var(--accent);font-weight:500;display:none"></span></h2>
       <span>−</span>
     </div>
     <div class="panel-body">
@@ -352,6 +359,16 @@ select { cursor: pointer; }
 </div>
 
 <div class="toast" id="toast"></div>
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal-box">
+    <h3>Save API Keys?</h3>
+    <p>Keys will be stored in this browser's localStorage (encoded, not encrypted). Anyone with access to this browser can potentially retrieve them.</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary btn-sm" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="confirmSaveKeys()">Save</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // =====================================================================
@@ -564,8 +581,21 @@ function loadPromptFile(e) {
 function togglePanel(id) {
   const panel = document.getElementById(id);
   panel.classList.toggle('collapsed');
-  const toggle = panel.querySelector('.panel-header span');
-  if (toggle) toggle.textContent = panel.classList.contains('collapsed') ? '+' : '−';
+  const collapsed = panel.classList.contains('collapsed');
+  const toggle = panel.querySelector('.panel-header > span:last-child');
+  if (toggle) toggle.textContent = collapsed ? '+' : '−';
+  if (id === 'modelsPanel') updateModelsSelected(collapsed);
+}
+
+function updateModelsSelected(collapsed) {
+  const el = document.getElementById('modelsSelected');
+  if (!collapsed || !selectedModels.size) {
+    el.style.display = 'none';
+    return;
+  }
+  const names = [...selectedModels].map(id => MODELS[id]?.name || id).join(', ');
+  el.textContent = '— ' + names;
+  el.style.display = 'inline';
 }
 
 // =====================================================================
@@ -1095,6 +1125,9 @@ async function runTests() {
   btn.textContent = 'Stop';
   btn.classList.add('btn-stop');
 
+  const mp = document.getElementById('modelsPanel');
+  if (!mp.classList.contains('collapsed')) togglePanel('modelsPanel');
+
   const mode = getFileMode();
   const groupId = nextGroupId++;
 
@@ -1361,7 +1394,7 @@ let currentLang = /^pt\b/i.test(navigator.language) ? 'pt' : 'en';
 const I18N = {
   en: {
     subtitle: 'Browser-only, no server needed',
-    apiKeys: 'API Keys', keysNote: 'Keys are kept in memory only — never saved. Adding a key auto-loads available models from each provider.',
+    apiKeys: 'API Keys', keysNote: 'Adding a key auto-loads available models. Use Save Keys to persist locally.',
     prompts: 'Prompts', preset: 'Preset', systemPrompt: 'System Prompt', userPrompt: 'User Prompt',
     files: 'Files (optional)', dropText: 'Drop files here or click to select',
     fileSeq: '1 file per request (sequential)', fileBatch: 'All in one request',
@@ -1388,7 +1421,7 @@ const I18N = {
   },
   pt: {
     subtitle: 'Corre no browser, sem servidor',
-    apiKeys: 'Chaves API', keysNote: 'As chaves ficam apenas em memória — nunca são guardadas. Ao adicionar uma chave, os modelos disponíveis são carregados automaticamente.',
+    apiKeys: 'Chaves API', keysNote: 'Ao adicionar uma chave, os modelos disponíveis são carregados automaticamente. Use Save Keys para guardar localmente.',
     prompts: 'Prompts', preset: 'Preset', systemPrompt: 'System Prompt', userPrompt: 'User Prompt',
     files: 'Ficheiros (opcional)', dropText: 'Arrasta ficheiros aqui ou clica para seleccionar',
     fileSeq: '1 ficheiro por pedido (sequencial)', fileBatch: 'Todos num pedido',
@@ -1493,12 +1526,19 @@ async function fetchExchangeRate() {
 
 const _KS = 'ait_k';
 function saveKeys() {
+  document.getElementById('confirmModal').classList.add('show');
+}
+function closeModal() {
+  document.getElementById('confirmModal').classList.remove('show');
+}
+function confirmSaveKeys() {
   const keys = {
     a: document.getElementById('keyAnthropic').value.trim(),
     o: document.getElementById('keyOpenAI').value.trim(),
     g: document.getElementById('keyGemini').value.trim()
   };
   localStorage.setItem(_KS, btoa(JSON.stringify(keys)));
+  closeModal();
   showToast('Keys saved');
 }
 function clearKeys() {
@@ -1507,7 +1547,7 @@ function clearKeys() {
   document.getElementById('keyOpenAI').value = '';
   document.getElementById('keyGemini').value = '';
   onKeyChange();
-  showToast('Keys cleared');
+  showToast(localStorage.getItem(_KS) === null ? 'Keys cleared' : 'Failed to clear keys');
 }
 function loadKeys() {
   const raw = localStorage.getItem(_KS);
@@ -1517,6 +1557,7 @@ function loadKeys() {
   if (keys.o) document.getElementById('keyOpenAI').value = keys.o;
   if (keys.g) document.getElementById('keyGemini').value = keys.g;
   onKeyChange();
+  if (keys.a && keys.o && keys.g) togglePanel('keysPanel');
 }
 
 // =====================================================================
