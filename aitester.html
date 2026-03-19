@@ -232,7 +232,11 @@ select { cursor: pointer; }
           <input type="password" id="keyGemini" placeholder="AIza..." oninput="onKeyChange()">
         </div>
       </div>
-      <div style="font-size:0.7rem;color:var(--fg2);margin-top:4px" data-i18n="keysNote">Keys are kept in memory only — never saved. Adding an OpenAI/Gemini key auto-loads available models.</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+        <button class="btn btn-secondary btn-sm" onclick="saveKeys()">Save Keys</button>
+        <button class="btn btn-secondary btn-sm" onclick="clearKeys()">Clear Keys</button>
+        <span style="font-size:0.7rem;color:var(--fg2)" data-i18n="keysNote">Keys are kept in memory only — never saved. Adding an OpenAI/Gemini key auto-loads available models.</span>
+      </div>
     </div>
   </div>
 
@@ -1487,11 +1491,40 @@ async function fetchExchangeRate() {
   }
 }
 
+const _KS = 'ait_k';
+function saveKeys() {
+  const keys = {
+    a: document.getElementById('keyAnthropic').value.trim(),
+    o: document.getElementById('keyOpenAI').value.trim(),
+    g: document.getElementById('keyGemini').value.trim()
+  };
+  localStorage.setItem(_KS, btoa(JSON.stringify(keys)));
+  showToast('Keys saved');
+}
+function clearKeys() {
+  localStorage.removeItem(_KS);
+  document.getElementById('keyAnthropic').value = '';
+  document.getElementById('keyOpenAI').value = '';
+  document.getElementById('keyGemini').value = '';
+  onKeyChange();
+  showToast('Keys cleared');
+}
+function loadKeys() {
+  const raw = localStorage.getItem(_KS);
+  if (!raw) return;
+  const keys = JSON.parse(atob(raw));
+  if (keys.a) document.getElementById('keyAnthropic').value = keys.a;
+  if (keys.o) document.getElementById('keyOpenAI').value = keys.o;
+  if (keys.g) document.getElementById('keyGemini').value = keys.g;
+  onKeyChange();
+}
+
 // =====================================================================
 // Init
 // =====================================================================
 
 applyLang();
+loadKeys();
 renderModels();
 fetchOpenRouterPrices();
 fetchExchangeRate();
