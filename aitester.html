@@ -254,10 +254,10 @@ select { cursor: pointer; }
       <div style="flex:1">
         <label data-i18n="preset">Preset</label>
         <select id="presetSelect" onchange="loadPreset()">
-          <option value="custom">Custom</option>
-          <option value="classify">Classify (basic)</option>
-          <option value="keyfields">Key Fields (medium)</option>
-          <option value="fullanalysis">Full Analysis (high)</option>
+          <option value="custom" data-i18n="presetCustom">Custom</option>
+          <option value="classify" data-i18n="presetClassify">Classify (basic)</option>
+          <option value="keyfields" data-i18n="presetKeyfields">Key Fields (medium)</option>
+          <option value="fullanalysis" data-i18n="presetFullanalysis">Full Analysis (high)</option>
         </select>
       </div>
       <button class="btn btn-secondary btn-sm" onclick="savePrompt()" title="Save current prompt to file">Save</button>
@@ -505,24 +505,42 @@ const PROVIDER_LABELS = { anthropic: 'Anthropic', openai: 'OpenAI', gemini: 'Goo
 // =====================================================================
 
 const PRESETS = {
-  custom: { system: '', user: '' },
+  custom: { en: { system: '', user: '' }, pt: { system: '', user: '' } },
   classify: {
-    system: '',
-    user: `Look at this document and reply ONLY with JSON:\n\n{\n  "is_financial": true or false,\n  "reason": "short reason"\n}\n\nReply true ONLY if it is: an invoice, receipt, credit note, or bank statement.\nReply false for EVERYTHING else.`
+    en: {
+      system: '',
+      user: `Look at this document and reply ONLY with JSON:\n\n{\n  "is_financial": true or false,\n  "reason": "short reason"\n}\n\nReply true ONLY if it is: an invoice, receipt, credit note, or bank statement.\nReply false for EVERYTHING else.`
+    },
+    pt: {
+      system: '',
+      user: `Olha para este documento e responde APENAS com JSON:\n\n{\n  "is_financial": true ou false,\n  "reason": "razão breve"\n}\n\nResponde true APENAS se for: uma fatura, recibo, nota de crédito ou extrato bancário.\nResponde false para TUDO o resto.`
+    }
   },
   keyfields: {
-    system: `You are a specialist assistant for financial document processing.\nYou extract data from fiscal documents with precision.\nYou ALWAYS reply in valid JSON, with no additional text.\nUse date format YYYY-MM-DD.\nMonetary values with 2 decimal places.`,
-    user: `Extract the following key fields from this document:\n1. The issuer company name\n2. The document number/reference\n3. The date\n4. The total amount and currency\n5. A brief description of the expense\n\nReply ONLY with JSON:\n{\n  "issuer": "Company name",\n  "documentNumber": "reference or null",\n  "date": "YYYY-MM-DD",\n  "totalAmount": 123.45,\n  "currency": "EUR",\n  "description": "brief expense description"\n}`
+    en: {
+      system: `You are a specialist assistant for financial document processing.\nYou extract data from fiscal documents with precision.\nYou ALWAYS reply in valid JSON, with no additional text.\nUse date format YYYY-MM-DD.\nMonetary values with 2 decimal places.`,
+      user: `Extract the following key fields from this document:\n1. The issuer company name\n2. The document number/reference\n3. The date\n4. The total amount and currency\n5. A brief description of the expense\n\nReply ONLY with JSON:\n{\n  "issuer": "Company name",\n  "documentNumber": "reference or null",\n  "date": "YYYY-MM-DD",\n  "totalAmount": 123.45,\n  "currency": "EUR",\n  "description": "brief expense description"\n}`
+    },
+    pt: {
+      system: `És um assistente especialista em processamento de documentos financeiros.\nExtrais dados de documentos fiscais com precisão.\nRespondes SEMPRE em JSON válido, sem texto adicional.\nUsa o formato de data YYYY-MM-DD.\nValores monetários com 2 casas decimais.`,
+      user: `Extrai os seguintes campos-chave deste documento:\n1. Nome da empresa emissora\n2. Número/referência do documento\n3. Data\n4. Valor total e moeda\n5. Descrição breve da despesa\n\nResponde APENAS com JSON:\n{\n  "issuer": "Nome da empresa",\n  "documentNumber": "referência ou null",\n  "date": "YYYY-MM-DD",\n  "totalAmount": 123.45,\n  "currency": "EUR",\n  "description": "descrição breve da despesa"\n}`
+    }
   },
   fullanalysis: {
-    system: `You are a specialist assistant for financial document processing.\nYou extract data from fiscal documents with precision.\nYou ALWAYS reply in valid JSON, with no additional text.\nUse date format YYYY-MM-DD.\nMonetary values with 2 decimal places.`,
-    user: `Analyse this financial document and return a JSON with the following exact structure:\n\n{\n  "docType": "INV|EXP|CRN|REC|BST|UNKNOWN",\n  "confidence": 0.95,\n  "issuerTaxId": "123456789",\n  "issuerName": "Issuer company name",\n  "recipientTaxId": "987654321",\n  "recipientName": "Recipient company name",\n  "documentDate": "2026-03-01",\n  "documentNumber": "INV 2026/123",\n  "totalAmount": 123.45,\n  "taxAmount": 23.45,\n  "netAmount": 100.00,\n  "taxRate": 23,\n  "currency": "EUR",\n  "description": "Electricity supply"\n}\n\nRules:\n- docType: INV=purchase invoice, EXP=expense, CRN=credit note, REC=receipt, BST=bank statement, UNKNOWN=unidentified\n- confidence: 0 to 1\n- Dates YYYY-MM-DD\n- Numeric values without currency symbol\n- description: describe as an accountant would\n- Reply ONLY with JSON\n\nIMPORTANT — UNKNOWN for: proformas, purchase orders, quotes, delivery notes.`
+    en: {
+      system: `You are a specialist assistant for financial document processing.\nYou extract data from fiscal documents with precision.\nYou ALWAYS reply in valid JSON, with no additional text.\nUse date format YYYY-MM-DD.\nMonetary values with 2 decimal places.`,
+      user: `Analyse this financial document and return a JSON with the following exact structure:\n\n{\n  "docType": "INV|EXP|CRN|REC|BST|UNKNOWN",\n  "confidence": 0.95,\n  "issuerTaxId": "123456789",\n  "issuerName": "Issuer company name",\n  "recipientTaxId": "987654321",\n  "recipientName": "Recipient company name",\n  "documentDate": "2026-03-01",\n  "documentNumber": "INV 2026/123",\n  "totalAmount": 123.45,\n  "taxAmount": 23.45,\n  "netAmount": 100.00,\n  "taxRate": 23,\n  "currency": "EUR",\n  "description": "Electricity supply"\n}\n\nRules:\n- docType: INV=purchase invoice, EXP=expense, CRN=credit note, REC=receipt, BST=bank statement, UNKNOWN=unidentified\n- confidence: 0 to 1\n- Dates YYYY-MM-DD\n- Numeric values without currency symbol\n- description: describe as an accountant would\n- Reply ONLY with JSON\n\nIMPORTANT — UNKNOWN for: proformas, purchase orders, quotes, delivery notes.`
+    },
+    pt: {
+      system: `És um assistente especialista em processamento de documentos financeiros.\nExtrais dados de documentos fiscais com precisão.\nRespondes SEMPRE em JSON válido, sem texto adicional.\nUsa o formato de data YYYY-MM-DD.\nValores monetários com 2 casas decimais.`,
+      user: `Analisa este documento financeiro e devolve um JSON com a seguinte estrutura exacta:\n\n{\n  "docType": "INV|EXP|CRN|REC|BST|UNKNOWN",\n  "confidence": 0.95,\n  "issuerTaxId": "123456789",\n  "issuerName": "Nome da empresa emissora",\n  "recipientTaxId": "987654321",\n  "recipientName": "Nome da empresa destinatária",\n  "documentDate": "2026-03-01",\n  "documentNumber": "FAT 2026/123",\n  "totalAmount": 123.45,\n  "taxAmount": 23.45,\n  "netAmount": 100.00,\n  "taxRate": 23,\n  "currency": "EUR",\n  "description": "Fornecimento de electricidade"\n}\n\nRegras:\n- docType: INV=fatura de compra, EXP=despesa, CRN=nota de crédito, REC=recibo, BST=extrato bancário, UNKNOWN=não identificado\n- confidence: 0 a 1\n- Datas YYYY-MM-DD\n- Valores numéricos sem símbolo de moeda\n- description: descrever como um contabilista faria\n- Responde APENAS com JSON\n\nIMPORTANTE — UNKNOWN para: proformas, notas de encomenda, orçamentos, guias de remessa.`
+    }
   },
 };
 
 function loadPreset() {
   const key = document.getElementById('presetSelect').value;
-  const p = PRESETS[key];
+  const p = PRESETS[key][currentLang] || PRESETS[key].en;
   document.getElementById('systemPrompt').value = p.system;
   document.getElementById('userPrompt').value = p.user;
 }
@@ -1396,6 +1414,7 @@ const I18N = {
     subtitle: 'Browser-only, no server needed',
     apiKeys: 'API Keys', keysNote: 'Adding a key auto-loads available models. Use Save Keys to persist locally.',
     prompts: 'Prompts', preset: 'Preset', systemPrompt: 'System Prompt', userPrompt: 'User Prompt',
+    presetCustom: 'Custom', presetClassify: 'Classify (basic)', presetKeyfields: 'Key Fields (medium)', presetFullanalysis: 'Full Analysis (high)',
     files: 'Files (optional)', dropText: 'Drop files here or click to select',
     fileSeq: '1 file per request (sequential)', fileBatch: 'All in one request',
     models: 'Models', selectUpTo4: '(select up to 4)',
@@ -1423,6 +1442,7 @@ const I18N = {
     subtitle: 'Corre no browser, sem servidor',
     apiKeys: 'Chaves API', keysNote: 'Ao adicionar uma chave, os modelos disponíveis são carregados automaticamente. Use Save Keys para guardar localmente.',
     prompts: 'Prompts', preset: 'Preset', systemPrompt: 'System Prompt', userPrompt: 'User Prompt',
+    presetCustom: 'Personalizado', presetClassify: 'Classificar (básico)', presetKeyfields: 'Campos-chave (médio)', presetFullanalysis: 'Análise completa (alto)',
     files: 'Ficheiros (opcional)', dropText: 'Arrasta ficheiros aqui ou clica para seleccionar',
     fileSeq: '1 ficheiro por pedido (sequencial)', fileBatch: 'Todos num pedido',
     models: 'Modelos', selectUpTo4: '(selecciona até 4)',
