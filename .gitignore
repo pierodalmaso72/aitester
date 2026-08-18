@@ -21,3 +21,6 @@ CLAUDE.md
 
 # Backup bundles
 *.bundle
+
+# Ficheiros pessoais e notas — nunca versionados (ver .pessoal/LEIA-ME.md)
+.pessoal/
